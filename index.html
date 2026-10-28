@@ -50,7 +50,7 @@
       flex-wrap: wrap;
     }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-logo-img { max-height: 42px; width: auto; object-fit: contain; }
+    .brand-logo-img { max-height: 52px; width: auto; object-fit: contain; }
     .brand-badge {
       background: #fff;
       color: var(--navy);
@@ -768,7 +768,7 @@ async function renderClientView(id) {
 
   const logoHeader = companyLogoUrl ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:65px; max-width:100%; object-fit:contain;">
+      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:120px; width:100%; max-width:320px; object-fit:contain;">
     </div>` : '';
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
@@ -892,7 +892,7 @@ async function renderClientVisitView(id) {
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
   const logoHeader = companyLogoUrl ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:65px; max-width:100%; object-fit:contain;">
+      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:120px; width:100%; max-width:320px; object-fit:contain;">
     </div>` : '';
 
   const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
@@ -956,7 +956,7 @@ async function confirmarColetaCliente(id, dbId) {
   if (supabaseClient && realDbId) {
     await supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
   }
-  alert("✅ Muito obrigado! Sua visita foi confirmada.");
+  alert("✅ Muito obrigado! Sua visita foi confirmada. Nossa equipe comparecerá no local no horário agendado.");
   await renderClientVisitView(id);
 }
 
