@@ -665,49 +665,18 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeCliente = decodeURIComponent(clientName);
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
-  const foto = decodeURIComponent(photoUrl || "");
 
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
-  const linkOnlineSecao = `
-👉 *Clique aqui para ver a foto do defeito e aprovar online:*
-${urlOs}
-`;
-
-  let fotoSecao = "";
-  if (foto && foto.startsWith("http")) {
-    fotoSecao = `
-📷 *Foto da Peça / Defeito:* ${foto}
-`;
-  }
-
-  const companyNum = (companyWhatsApp || "").replace(/\D/g, "");
-  const targetCompany = companyNum ? (companyNum.startsWith("55") ? companyNum : "55" + companyNum) : "";
-  let quickActions = "";
-  if (targetCompany) {
-    const msgAprovar = encodeURIComponent(`Olá WA Resolve! APROVO o orçamento da Ordem ${orderId} para o conserto do(a) ${nomeAparelho}!`);
-    const msgRecusar = encodeURIComponent(`Olá WA Resolve! NÃO APROVO o orçamento da Ordem ${orderId}. O motivo é: `);
-    quickActions = `
-👉 *Ou responda direto por aqui:*
-✅ Aprovar Orçamento: https://wa.me/${targetCompany}?text=${msgAprovar}
-❌ Recusar Orçamento: https://wa.me/${targetCompany}?text=${msgRecusar}
-`;
-  }
 
   const texto = 
-`🔧 *WA RESOLVE | ORÇAMENTO TÉCNICO* 🔧
-------------------------------------------
-Olá, *${nomeCliente}*!
+`Olá, *${nomeCliente}*! Segue o link de visualização e aprovação do orçamento para o conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
-Finalizamos a avaliação técnica do seu equipamento:
-📦 *Aparelho:* ${nomeAparelho}
-${detalhesTxt ? `🛠️ *Diagnóstico / Serviços:* ${detalhesTxt}
-` : ""}💰 *Valor Total do Orçamento:* R$ ${Number(price).toFixed(2)}
-${fotoSecao}------------------------------------------
-${linkOnlineSecao}${quickActions}
-Aguardamos sua resposta!
-WA Resolve Assistência Técnica`;
+💰 *Valor:* R$ ${Number(price).toFixed(2)}
+${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
+👉 *Clique para aprovar ou recusar online:*
+${urlOs}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
@@ -729,36 +698,12 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
-  const linkOnlineSecao = `
-👉 *Clique aqui para responder SIM ou NÃO online:*
-${urlVisita}
-`;
-
-  const companyNum = (companyWhatsApp || "").replace(/\D/g, "");
-  const targetCompany = companyNum ? (companyNum.startsWith("55") ? companyNum : "55" + companyNum) : "";
-  let quickActions = "";
-  if (targetCompany) {
-    const msgSim = encodeURIComponent(`Olá WA Resolve! Confirmado (SIM), pode comparecer para coletar o equipamento (${nomeAparelho}) no dia ${dataFormatada}!`);
-    const msgNao = encodeURIComponent(`Olá WA Resolve! Não posso receber a coleta no dia ${dataFormatada}. O motivo é: `);
-    quickActions = `
-👉 *Ou responda direto aqui:*
-✅ Confirmar SIM: https://wa.me/${targetCompany}?text=${msgSim}
-❌ Reagendar NÃO: https://wa.me/${targetCompany}?text=${msgNao}
-`;
-  }
 
   const texto = 
-`🔧 *WA RESOLVE | CENTRAL DE SERVIÇOS* 🔧
-------------------------------------------
-Olá, *${nomeCliente}*! Tudo bem?
+`Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
 
-Gostaríamos de confirmar se a equipe da *WA Resolve* pode comparecer para coletar / avaliar o seu equipamento:
-📦 *Equipamento:* ${nomeAparelho}
-📅 *Data:* ${dataFormatada}
-⏰ *Horário:* ${horarioTxt}
-------------------------------------------
-${linkOnlineSecao}${quickActions}
-Agradecemos a confiança!`;
+👉 *Clique para responder SIM ou NÃO online:*
+${urlVisita}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
@@ -983,7 +928,7 @@ async function renderClientVisitView(id) {
 
       ${companyPhoneClean ? `
         <div style="margin-top:20px; text-align:center;">
-          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência na WhatsApp</button>
+          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>
         </div>
       ` : ''}
     </div>
