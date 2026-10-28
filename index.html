@@ -663,7 +663,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -692,7 +692,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -809,6 +809,22 @@ function displayClientOrderPage(o) {
   `;
 }
 
+async function clientActionOrder(id, newStatus, dbId) {
+  const o = orders.find(item => item.id === id);
+  if (o) {
+    o.status = newStatus;
+    localStorage.setItem("wa_orders", JSON.stringify(orders));
+  }
+  
+  const realDbId = dbId || (o ? o.dbId : id.replace(/\D/g, ""));
+  if (supabaseClient && realDbId) {
+    await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
+  }
+  
+  alert("✅ Orçamento aprovado! Conserto iniciado.");
+  renderClientView(id);
+}
+
 function renderClientVisitView(id) {
   document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando visita...</h2></div>`;
 
@@ -904,6 +920,367 @@ function displayClientVisitPage(v) {
       ` : ''}
     </div>
   `;
+}
+
+function confirmarColetaCliente(id, dbId) {
+  const v = visits.find(item => item.id === id);
+  if (v) {
+    v.status = "Confirmada";
+    localStorage.setItem("wa_visits", JSON.stringify(visits));
+  }
+  const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
+  if (supabaseClient && realDbId) {
+    supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
+  }
+  alert("✅ Muito obrigado! Sua visita foi confirmada.");
+  renderClientVisitView(id);
+}
+
+function recusarColetaCliente(id, dbId) {
+  const motivo = prompt("Por favor, informe o motivo ou sugira uma nova data/horário:");
+  if (motivo !== null) {
+    const v = visits.find(item => item.id === id);
+    if (v) {
+      v.status = "Reagendar / Não autorizado";
+      v.motivo_recusa = motivo || "Cliente não informou o motivo";
+      localStorage.setItem("wa_visits", JSON.stringify(visits));
+    }
+    const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
+    if (supabaseClient && realDbId) {
+      supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: "Motivo: " + (motivo || "Não informado") }).eq("id", realDbId);
+    }
+    alert("Agradecemos o aviso! Entraremos em contato para combinar uma nova data.");
+    renderClientVisitView(visitaId);
+  }
+}
+
+// Funções de auxílio para Clientes e Ordens
+async function saveOrder(e) {
+  e.preventDefault();
+  const name = document.getElementById("osName").value.trim();
+  const phone = document.getElementById("osPhone").value.trim();
+  const appliance = document.getElementById("osAppliance").value.trim();
+  const brand = document.getElementById("osBrand").value.trim();
+  const problem = document.getElementById("osProblem").value.trim();
+  const diagnosis = document.getElementById("osDiagnosis").value.trim();
+  const price = parseFloat(document.getElementById("osPrice").value) || 0;
+  const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
+  const photoUrl = document.getElementById("osPhoto").value.trim();
+  const status = "Aguardando aprovação";
+
+  let cId = null;
+
+  if (supabaseClient) {
+    try {
+      let { data: existingClient } = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
+      if (existingClient && existingClient.length > 0) {
+        cId = existingClient[0].id;
+      } else {
+        let resClient = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select();
+        if (resClient.data && resClient.data.length > 0) {
+          cId = resClient.data[0].id;
+        }
+      }
+
+      let osRes = await supabaseClient.from("ordens_servico").insert([{
+        cliente_id: cId,
+        titulo_servico: appliance,
+        marca: brand,
+        defeito: problem,
+        diagnostico: diagnosis,
+        orcamento: price,
+        taxa_recusa: refusalFee,
+        foto_url: photoUrl,
+        status: status
+      }]).select();
+
+      if (osRes.data && osRes.data[0]) {
+        const createdId = "WR-" + osRes.data[0].id;
+        orders.push({
+          id: createdId,
+          dbId: osRes.data[0].id,
+          name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status,
+          created: new Date().toISOString()
+        });
+        localStorage.setItem("wa_orders", JSON.stringify(orders));
+        alert("Ordem " + createdId + " salva com sucesso na nuvem!");
+        renderDashboard();
+        return;
+      }
+    } catch(err) {
+      console.warn("Erro ao salvar OS na nuvem:", err);
+    }
+  }
+
+  const tempId = "WR-" + Math.floor(1000 + Math.random() * 9000);
+  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, created: new Date().toISOString() });
+  localStorage.setItem("wa_orders", JSON.stringify(orders));
+  alert("Ordem " + tempId + " cadastrada com sucesso!");
+  renderDashboard();
+}
+
+async function saveClient(e) {
+  e.preventDefault();
+  const nome = document.getElementById("cNome").value.trim();
+  const telefone = document.getElementById("cTelefone").value.trim();
+  const endereco = document.getElementById("cEndereco") ? document.getElementById("cEndereco").value.trim() : "";
+
+  const tempClient = { id: Date.now(), nome, telefone, endereco };
+  clients.push(tempClient);
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+  renderDashboard();
+
+  if (supabaseClient) {
+    try {
+      let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
+      if (!error && data && data[0]) {
+        tempClient.id = data[0].id;
+        localStorage.setItem("wa_clients", JSON.stringify(clients));
+      }
+    } catch (err) {
+      console.warn("Exceção Supabase:", err);
+    }
+  }
+  alert("✅ Cliente cadastrado com sucesso!");
+  syncFromSupabase();
+}
+
+async function saveVisit(e) {
+  e.preventDefault();
+  const cliente_nome = document.getElementById("vNome").value.trim();
+  const telefone = document.getElementById("vTelefone").value.trim();
+  const data_visita = document.getElementById("vData").value;
+  const horario_visita = document.getElementById("vHorario").value;
+  const aparelho_motivo = document.getElementById("vAparelho").value.trim();
+  const endereco = document.getElementById("vEndereco").value.trim();
+  const observacoes = document.getElementById("vObs").value.trim();
+
+  let vDbId = null;
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient.from("visitas").insert([{
+        cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
+      }]).select();
+      if (!error && data && data.length > 0) {
+        vDbId = data[0].id;
+      }
+    } catch(err) {
+      console.warn("Erro ao salvar visita:", err);
+    }
+  }
+
+  const newVisit = {
+    id: "VIS-" + (vDbId || Math.floor(1000 + Math.random() * 9000)),
+    dbId: vDbId,
+    cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
+  };
+  visits.push(newVisit);
+  localStorage.setItem("wa_visits", JSON.stringify(visits));
+  alert("Visita agendada com sucesso!");
+  renderDashboard();
+}
+
+function openKeyModal() {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurações da WA Resolve</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Personalize a sua Logo e os links públicos.</p>
+      
+      <div class="field">
+        <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
+        <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
+        <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
+      </div>
+
+      <div class="field">
+        <label>🌐 Link do GitHub Pages</label>
+        <input id="modalPublicUrl" placeholder="https://seusite.github.io/WA_Resolver/" value="${localStorage.getItem("wa_public_url") || ""}">
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
+        <button class="primary" onclick="saveSettingsModal(this)">Salvar Alterações</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function saveSettingsModal(btn) {
+  const logo = document.getElementById("modalLogoInput").value.trim();
+  const urlPub = document.getElementById("modalPublicUrl").value.trim();
+  companyLogoUrl = logo;
+  localStorage.setItem("wa_company_logo", logo);
+  localStorage.setItem("wa_public_url", urlPub);
+  btn.closest(".modal").remove();
+  alert("Configurações salvas com sucesso!");
+  renderDashboard();
+}
+
+function editClient(id) {
+  const c = clients.find(item => String(item.id) === String(id));
+  if (!c) return;
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:12px;">✏️ Editar Cliente</h3>
+      <form onsubmit="updateClient(event, '${c.id}')">
+        <div class="field">
+          <label>Nome Completo *</label>
+          <input id="editCNome" required value="${c.nome}">
+        </div>
+        <div class="field">
+          <label>Telefone / WhatsApp *</label>
+          <input id="editCTelefone" required value="${c.telefone || ''}" inputmode="tel">
+        </div>
+        <div class="field">
+          <label>Endereço Completo</label>
+          <textarea id="editCEndereco" rows="3">${c.endereco || ''}</textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+          <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
+          <button type="submit" class="primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function updateClient(e, id) {
+  e.preventDefault();
+  const nome = document.getElementById("editCNome").value.trim();
+  const telefone = document.getElementById("editCTelefone").value.trim();
+  const endereco = document.getElementById("editCEndereco").value.trim();
+
+  const c = clients.find(item => String(item.id) === String(id));
+  if (c) {
+    c.nome = nome;
+    c.telefone = telefone;
+    c.endereco = endereco;
+    localStorage.setItem("wa_clients", JSON.stringify(clients));
+
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
+      } catch(err) {
+        console.warn("Erro ao atualizar cliente:", err);
+      }
+    }
+  }
+
+  document.querySelector(".modal").remove();
+  alert("Cliente atualizado com sucesso!");
+  renderDashboard();
+}
+
+async function deleteClient(id, encodedName) {
+  const nomeCliente = decodeURIComponent(encodedName);
+  if (!confirm(`⚠️ Deseja realmente excluir o cliente "${nomeCliente}"?`)) return;
+
+  clients = clients.filter(item => String(item.id) !== String(id));
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+
+  if (supabaseClient) {
+    try {
+      await supabaseClient.from("clientes").delete().eq("id", id);
+    } catch(err) {
+      console.warn("Erro ao excluir cliente:", err);
+    }
+  }
+
+  alert("Cliente excluído com sucesso!");
+  renderDashboard();
+}
+
+async function deleteOrder(id) {
+  if (!confirm(`⚠️ Deseja realmente excluir a ordem ${id}?`)) return;
+
+  const o = orders.find(item => item.id === id);
+  orders = orders.filter(item => item.id !== id);
+  localStorage.setItem("wa_orders", JSON.stringify(orders));
+
+  if (supabaseClient && o && o.dbId) {
+    try {
+      await supabaseClient.from("ordens_servico").delete().eq("id", o.dbId);
+    } catch(err) {
+      console.warn("Erro ao excluir OS no Supabase:", err);
+    }
+  }
+
+  alert("Ordem excluída com sucesso!");
+  renderDashboard();
+}
+
+openMaps = function(endereco) {
+  window.open("https://www.google.com/maps/search/?api=1&query=" + endereco, "_blank");
+};
+
+function copyLink(id) {
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + id;
+  navigator.clipboard.writeText(url).then(() => {
+    alert("Link copiado para a área de transferência!\n\n" + url);
+  }).catch(() => {
+    prompt("Copie o link abaixo:", url);
+  });
+}
+
+function changeOrderStatus(id) {
+  const o = orders.find(item => item.id === id);
+  if (!o) return;
+  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Aprovado - Conserto iniciado\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
+  if (!novo) return;
+  if (novo === "1") o.status = "Aguardando aprovação";
+  else if (novo === "2") o.status = "Aprovado - Conserto iniciado";
+  else if (novo === "3") o.status = "Pronto para retirada";
+  else if (novo === "4") o.status = "Concluído";
+  else if (novo === "5") o.status = "Não aprovado";
+  else o.status = novo;
+  
+  localStorage.setItem("wa_orders", JSON.stringify(orders));
+  if (supabaseClient && o.dbId) {
+    supabaseClient.from("ordens_servico").update({ status: o.status }).eq("id", o.dbId);
+  }
+  renderDashboard();
+}
+
+function changePin() {
+  const novo = prompt("Digite a nova Senha/PIN de administrador (mínimo 4 caracteres)", adminPin);
+  if (novo && novo.trim().length >= 4) {
+    adminPin = novo.trim();
+    localStorage.setItem("wa_admin_pin", adminPin);
+    alert("Senha alterada com sucesso!");
+  }
+}
+
+function editCompanyWhatsApp() {
+  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com DDD, somente números):", companyWhatsApp || "849...");
+  if (novo !== null) {
+    companyWhatsApp = novo.replace(/\D/g, "");
+    localStorage.setItem("wa_company_phone", companyWhatsApp);
+    alert("WhatsApp da assistência salvo com sucesso!");
+    renderDashboard();
+  }
+}
+
+function changeOrderPhoto(id) {
+  const o = orders.find(item => item.id === id);
+  if (!o) return;
+  const novoLink = prompt("Cole o link da foto do equipamento / defeito:", o.photoUrl || "");
+  if (novoLink !== null) {
+    o.photoUrl = novoLink.trim();
+    localStorage.setItem("wa_orders", JSON.stringify(orders));
+    if (supabaseClient && o.dbId) {
+      supabaseClient.from("ordens_servico").update({ foto_url: o.photoUrl }).eq("id", o.dbId);
+    }
+    alert("Foto atualizada com sucesso!");
+    renderDashboard();
+  }
 }
 </script>
 </body>
