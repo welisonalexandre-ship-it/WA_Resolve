@@ -186,7 +186,7 @@ let supabaseKey = FIXED_SUPABASE_KEY;
 let supabaseClient = null;
 try {
   if (window.supabase) {
-    supabaseClient = supabase.createClient(SUPABASE_URL, supabaseKey);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, supabaseKey);
   }
 } catch(e) {
   console.warn("Erro ao iniciar Supabase:", e);
@@ -211,16 +211,16 @@ function formatarDataBR(dataIso) {
   return dataIso;
 }
 
-async function syncFromSupabase() {
+function syncFromSupabase() {
   if (!supabaseClient) return;
-  try {
-    const { data: cData, error: cErr } = await supabaseClient.from("clientes").select("*").order("id", { ascending: false });
+  supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData, error: cErr }) => {
     if (!cErr && cData && cData.length > 0) {
       clients = cData;
       localStorage.setItem("wa_clients", JSON.stringify(clients));
     }
+  });
 
-    const { data: oData, error: oErr } = await supabaseClient.from("ordens_servico").select("*, clientes(*)").order("id", { ascending: false });
+  supabaseClient.from("ordens_servico").select("*, clientes(*)").order("id", { ascending: false }).then(({ data: oData, error: oErr }) => {
     if (!oErr && oData && oData.length > 0) {
       orders = oData.map(d => ({
         id: "WR-" + d.id,
@@ -239,8 +239,9 @@ async function syncFromSupabase() {
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
     }
+  });
 
-    const { data: vData, error: vErr } = await supabaseClient.from("visitas").select("*").order("id", { ascending: false });
+  supabaseClient.from("visitas").select("*").order("id", { ascending: false }).then(({ data: vData, error: vErr }) => {
     if (!vErr && vData && vData.length > 0) {
       visits = vData.map(v => ({
         id: "VIS-" + v.id,
@@ -257,10 +258,27 @@ async function syncFromSupabase() {
       }));
       localStorage.setItem("wa_visits", JSON.stringify(visits));
     }
-    
-    if (isUnlocked && !window.location.search) renderDashboard();
-  } catch (err) {
-    console.warn("Sincronização Supabase:", err);
+  });
+}
+
+function checkRoute() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const clienteId = params.get("cliente");
+    const visitaId = params.get("visita");
+
+    if (visitaId) {
+      renderClientVisitView(visitaId);
+    } else if (clienteId) {
+      renderClientView(clienteId);
+    } else if (!isUnlocked) {
+      renderLockScreen();
+    } else {
+      renderDashboard();
+    }
+  } catch(err) {
+    console.error("Erro na rota:", err);
+    renderLockScreen();
   }
 }
 
@@ -941,7 +959,7 @@ function recusarColetaCliente(id, dbId) {
   }
 }
 
-// Inicialização imediata sem travamentos
+// Inicialização imediata à prova de falhas
 checkRoute();
 if (supabaseClient) {
   syncFromSupabase();
