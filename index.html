@@ -671,11 +671,11 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
   const texto = 
-`Olá, *${nomeCliente}*! Segue o link de visualização e aprovação do orçamento para o conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
+`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
 ${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
-👉 *Clique para aprovar ou recusar online:*
+👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
 ${urlOs}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
@@ -718,27 +718,28 @@ async function renderClientView(id) {
 
   if (!o && supabaseClient) {
     try {
-      const numId = id.replace(/\D/g, "");
-      let query = supabaseClient.from("ordens_servico").select("*, clientes(*)");
-      if (numId) query = query.eq("id", numId);
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        const d = data[0];
-        o = {
-          id: "WR-" + d.id,
-          dbId: d.id,
-          name: d.clientes ? d.clientes.nome : "Cliente",
-          phone: d.clientes ? d.clientes.telefone : "",
-          appliance: d.titulo_servico || "Aparelho",
-          brand: d.marca || "",
-          problem: d.defeito || d.descricao || "",
-          diagnosis: d.diagnostico || "",
-          price: Number(d.orcamento) || 0,
-          refusalFee: Number(d.taxa_recusa) || 0,
-          photoUrl: d.foto_url || "",
-          status: d.status || "Aguardando aprovação",
-          created: d.created_at
-        };
+      const numId = String(id).replace(/\D/g, "");
+      let { data, error } = await supabaseClient.from("ordens_servico").select("*, clientes(*)");
+      if (!error && data) {
+        const found = data.find(d => String(d.id) === numId || "WR-" + d.id === String(id));
+        if (found) {
+          const d = found;
+          o = {
+            id: "WR-" + d.id,
+            dbId: d.id,
+            name: d.clientes ? d.clientes.nome : "Cliente",
+            phone: d.clientes ? d.clientes.telefone : "",
+            appliance: d.titulo_servico || "Aparelho",
+            brand: d.marca || "",
+            problem: d.defeito || d.descricao || "",
+            diagnosis: d.diagnostico || "",
+            price: Number(d.orcamento) || 0,
+            refusalFee: Number(d.taxa_recusa) || 0,
+            photoUrl: d.foto_url || "",
+            status: d.status || "Aguardando aprovação",
+            created: d.created_at
+          };
+        }
       }
     } catch(err) {
       console.warn("Erro ao buscar ordem na nuvem:", err);
@@ -853,25 +854,25 @@ async function renderClientVisitView(id) {
 
   if (!v && supabaseClient) {
     try {
-      const numId = id.replace(/\D/g, "");
-      let query = supabaseClient.from("visitas").select("*");
-      if (numId) query = query.eq("id", numId);
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        const item = data[0];
-        v = {
-          id: "VIS-" + item.id,
-          dbId: item.id,
-          cliente_nome: item.cliente_nome,
-          telefone: item.telefone,
-          endereco: item.endereco,
-          data_visita: item.data_visita,
-          horario_visita: item.horario_visita,
-          aparelho_motivo: item.aparelho_motivo,
-          observacoes: item.observacoes,
-          motivo_recusa: item.motivo_recusa || "",
-          status: item.status
-        };
+      const numId = String(id).replace(/\D/g, "");
+      let { data, error } = await supabaseClient.from("visitas").select("*");
+      if (!error && data) {
+        const found = data.find(item => String(item.id) === numId || "VIS-" + item.id === String(id));
+        if (found) {
+          v = {
+            id: "VIS-" + found.id,
+            dbId: found.id,
+            cliente_nome: found.cliente_nome,
+            telefone: found.telefone,
+            endereco: found.endereco,
+            data_visita: found.data_visita,
+            horario_visita: found.horario_visita,
+            aparelho_motivo: found.aparelho_motivo,
+            observacoes: found.observacoes,
+            motivo_recusa: found.motivo_recusa || "",
+            status: found.status
+          };
+        }
       }
     } catch(err) {
       console.warn("Erro ao buscar visita na nuvem:", err);
@@ -893,6 +894,19 @@ async function renderClientVisitView(id) {
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
       <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:65px; max-width:100%; object-fit:contain;">
     </div>` : '';
+
+  const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
+  const visitActionsHtml = isConfirmed ? `
+    <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
+      <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Visita / Coleta Confirmada!</h3>
+      <p style="color:#047857; font-size:14px;">Agradecemos a confirmação. Nossa equipe comparecerá no horário agendado.</p>
+    </div>
+  ` : `
+    <div style="display:grid; gap:10px;">
+      <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}', ${v.dbId})">✅ SIM, pode coletar no horário previsto</button>
+      <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="recusarColetaCliente('${v.id}', ${v.dbId})">❌ NÃO, não poderei receber (informar motivo)</button>
+    </div>
+  `;
 
   document.getElementById("app").innerHTML = `
     <header class="top">
@@ -921,10 +935,7 @@ async function renderClientVisitView(id) {
         <h3 style="font-size:16px; color:var(--navy); margin-bottom:8px;">Podemos comparecer para coletar o seu equipamento?</h3>
       </div>
 
-      <div style="display:grid; gap:10px;">
-        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}', ${v.dbId})">✅ SIM, pode coletar no horário previsto</button>
-        <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="recusarColetaCliente('${v.id}', ${v.dbId})">❌ NÃO, não poderei receber (informar motivo)</button>
-      </div>
+      ${visitActionsHtml}
 
       ${companyPhoneClean ? `
         <div style="margin-top:20px; text-align:center;">
@@ -945,7 +956,7 @@ async function confirmarColetaCliente(id, dbId) {
   if (supabaseClient && realDbId) {
     await supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
   }
-  alert("✅ Muito obrigado! Sua visita foi confirmada. Nossa equipe comparecerá no local no horário agendado.");
+  alert("✅ Muito obrigado! Sua visita foi confirmada.");
   await renderClientVisitView(id);
 }
 
@@ -1084,7 +1095,7 @@ function openKeyModal() {
       
       <div class="field">
         <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
-        <input id="modalLogoInput" placeholder="Ex: https://i.imgur.com/sua_logo.png" value="${companyLogoUrl}">
+        <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
         <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
       </div>
 
