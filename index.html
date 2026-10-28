@@ -208,6 +208,7 @@ function formatarDataBR(dataIso) {
   return dataIso;
 }
 
+// Execução imediata no carregamento da página
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   const clienteId = params.get("cliente");
@@ -663,7 +664,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -692,7 +693,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -950,7 +951,7 @@ function recusarColetaCliente(id, dbId) {
       supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: "Motivo: " + (motivo || "Não informado") }).eq("id", realDbId);
     }
     alert("Agradecemos o aviso! Entraremos em contato para combinar uma nova data.");
-    renderClientVisitView(visitaId);
+    renderClientVisitView(id);
   }
 }
 
@@ -1221,7 +1222,7 @@ openMaps = function(endereco) {
 };
 
 function copyLink(id) {
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + id;
   navigator.clipboard.writeText(url).then(() => {
     alert("Link copiado para a área de transferência!\n\n" + url);
