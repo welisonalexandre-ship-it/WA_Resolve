@@ -208,24 +208,29 @@ function formatarDataBR(dataIso) {
   return dataIso;
 }
 
-// Execução imediata no carregamento da página
+// Execução imediata no carregamento da página com tratamento blindado
 window.addEventListener("DOMContentLoaded", () => {
-  const params = new URLSearchParams(window.location.search);
-  const clienteId = params.get("cliente");
-  const visitaId = params.get("visita");
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const clienteId = params.get("cliente");
+    const visitaId = params.get("visita");
 
-  if (visitaId) {
-    renderClientVisitView(visitaId);
-  } else if (clienteId) {
-    renderClientView(clienteId);
-  } else if (!isUnlocked) {
-    renderLockScreen();
-  } else {
-    renderDashboard();
-  }
+    if (visitaId) {
+      renderClientVisitView(visitaId);
+    } else if (clienteId) {
+      renderClientView(clienteId);
+    } else if (!isUnlocked) {
+      renderLockScreen();
+    } else {
+      renderDashboard();
+    }
 
-  if (supabaseClient) {
-    syncFromSupabase();
+    if (supabaseClient) {
+      syncFromSupabase();
+    }
+  } catch(err) {
+    console.error("Erro no DOMContentLoaded:", err);
+    document.getElementById("app").innerHTML = '<div style="padding:40px; text-align:center;"><h2>Painel WA Resolve</h2><p><a href="?" style="color:var(--blue);">Clique aqui para recarregar o sistema</a></p></div>';
   }
 });
 
@@ -625,6 +630,7 @@ function renderVisits() {
                 <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="sendVisitConfirmationToWhatsApp('${v.telefone}', '${encodeURIComponent(v.cliente_nome)}', '${v.data_visita}', '${encodeURIComponent(v.horario_visita)}', '${encodeURIComponent(v.aparelho_motivo)}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
                 <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="openMaps('${encodeURIComponent(v.endereco)}')">🗺️ Rota no Maps</button>
                 <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
+                <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
               </div>
             </div>
           `).join('')}
@@ -672,7 +678,8 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
-${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
+${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}
+` : ""}
 👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
 ${urlOs}`;
 
@@ -953,6 +960,25 @@ function recusarColetaCliente(id, dbId) {
     alert("Agradecemos o aviso! Entraremos em contato para combinar uma nova data.");
     renderClientVisitView(id);
   }
+}
+
+async function deleteVisit(id) {
+  if (!confirm(`⚠️ Deseja realmente excluir este agendamento de visita?`)) return;
+
+  const v = visits.find(item => String(item.id) === String(id));
+  visits = visits.filter(item => String(item.id) !== String(id));
+  localStorage.setItem("wa_visits", JSON.stringify(visits));
+
+  if (supabaseClient && v && v.dbId) {
+    try {
+      await supabaseClient.from("visitas").delete().eq("id", v.dbId);
+    } catch(err) {
+      console.warn("Erro ao excluir visita no Supabase:", err);
+    }
+  }
+
+  alert("Visita excluída com sucesso!");
+  renderDashboard();
 }
 
 // Funções de auxílio para Clientes e Ordens
