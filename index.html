@@ -42,7 +42,7 @@
     .top {
       background: var(--navy);
       color: #fff;
-      padding: 10px 20px;
+      padding: 12px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -174,22 +174,19 @@
 </head>
 <body>
 
-<div id="app">Carregando sistema...</div>
+<div id="app"></div>
 
 <script>
 const SUPABASE_URL = "https://xuletvulgzdnuukynlhs.supabase.co";
 const FIXED_SUPABASE_KEY = "sb_publishable_j7pad31FTUWcxR7NlpN4ng_HssGl2AC";
 
-localStorage.setItem("wa_supabase_key", FIXED_SUPABASE_KEY);
-let supabaseKey = FIXED_SUPABASE_KEY;
-
 let supabaseClient = null;
 try {
   if (window.supabase) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, supabaseKey);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, FIXED_SUPABASE_KEY);
   }
 } catch(e) {
-  console.warn("Erro ao iniciar Supabase:", e);
+  console.warn("Supabase init error:", e);
 }
 
 let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
@@ -210,6 +207,26 @@ function formatarDataBR(dataIso) {
   }
   return dataIso;
 }
+
+window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(window.location.search);
+  const clienteId = params.get("cliente");
+  const visitaId = params.get("visita");
+
+  if (visitaId) {
+    renderClientVisitView(visitaId);
+  } else if (clienteId) {
+    renderClientView(clienteId);
+  } else if (!isUnlocked) {
+    renderLockScreen();
+  } else {
+    renderDashboard();
+  }
+
+  if (supabaseClient) {
+    syncFromSupabase();
+  }
+});
 
 function syncFromSupabase() {
   if (!supabaseClient) return;
@@ -259,27 +276,6 @@ function syncFromSupabase() {
       localStorage.setItem("wa_visits", JSON.stringify(visits));
     }
   });
-}
-
-function checkRoute() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const clienteId = params.get("cliente");
-    const visitaId = params.get("visita");
-
-    if (visitaId) {
-      renderClientVisitView(visitaId);
-    } else if (clienteId) {
-      renderClientView(clienteId);
-    } else if (!isUnlocked) {
-      renderLockScreen();
-    } else {
-      renderDashboard();
-    }
-  } catch(err) {
-    console.error("Erro na rota:", err);
-    renderLockScreen();
-  }
 }
 
 function unlock(e) {
@@ -711,44 +707,43 @@ ${urlVisita}`;
   window.open(url, "_blank");
 }
 
-// Tela de Orçamento que o cliente abre no celular dele
 function renderClientView(id) {
   document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>`;
 
   let o = orders.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
-  if (!o) {
-    if (supabaseClient) {
-      supabaseClient.from("ordens_servico").select("*, clientes(*)").then(({data}) => {
-        if (data) {
-          const found = data.find(d => String(d.id) === String(id).replace(/\D/g, "") || "WR-" + d.id === String(id));
-          if (found) {
-            o = {
-              id: "WR-" + found.id,
-              dbId: found.id,
-              name: found.clientes ? found.clientes.nome : "Cliente",
-              phone: found.clientes ? found.clientes.telefone : "",
-              appliance: found.titulo_servico || "Aparelho",
-              brand: found.marca || "",
-              problem: found.defeito || found.descricao || "",
-              diagnosis: found.diagnostico || "",
-              price: Number(found.orcamento) || 0,
-              refusalFee: Number(found.taxa_recusa) || 0,
-              photoUrl: found.foto_url || "",
-              status: found.status || "Aguardando aprovação"
-            };
-            displayClientOrderPage(o);
-            return;
-          }
+  if (!o && supabaseClient) {
+    supabaseClient.from("ordens_servico").select("*, clientes(*)").then(({data}) => {
+      if (data) {
+        const found = data.find(d => String(d.id) === String(id).replace(/\D/g, "") || "WR-" + d.id === String(id));
+        if (found) {
+          o = {
+            id: "WR-" + found.id,
+            dbId: found.id,
+            name: found.clientes ? found.clientes.nome : "Cliente",
+            phone: found.clientes ? found.clientes.telefone : "",
+            appliance: found.titulo_servico || "Aparelho",
+            brand: found.marca || "",
+            problem: found.defeito || found.descricao || "",
+            diagnosis: found.diagnostico || "",
+            price: Number(found.orcamento) || 0,
+            refusalFee: Number(found.taxa_recusa) || 0,
+            photoUrl: found.foto_url || "",
+            status: found.status || "Aguardando aprovação"
+          };
+          displayClientOrderPage(o);
+          return;
         }
-        document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2><p>Verifique o link ou entre em contato.</p></div>`;
-      });
-      return;
-    }
+      }
+      document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2></div>`;
+    });
+    return;
   }
 
   if (o) {
     displayClientOrderPage(o);
+  } else {
+    document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2></div>`;
   }
 }
 
@@ -812,22 +807,6 @@ function displayClientOrderPage(o) {
       ${actionsHtml}
     </div>
   `;
-}
-
-async function clientActionOrder(id, newStatus, dbId) {
-  const o = orders.find(item => item.id === id);
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem("wa_orders", JSON.stringify(orders));
-  }
-  
-  const realDbId = dbId || (o ? o.dbId : id.replace(/\D/g, ""));
-  if (supabaseClient && realDbId) {
-    await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
-  }
-  
-  alert("✅ Orçamento aprovado! Conserto iniciado.");
-  renderClientView(id);
 }
 
 function renderClientVisitView(id) {
@@ -925,44 +904,6 @@ function displayClientVisitPage(v) {
       ` : ''}
     </div>
   `;
-}
-
-function confirmarColetaCliente(id, dbId) {
-  const v = visits.find(item => item.id === id);
-  if (v) {
-    v.status = "Confirmada";
-    localStorage.setItem("wa_visits", JSON.stringify(visits));
-  }
-  const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
-  if (supabaseClient && realDbId) {
-    supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
-  }
-  alert("✅ Muito obrigado! Sua visita foi confirmada.");
-  renderClientVisitView(id);
-}
-
-function recusarColetaCliente(id, dbId) {
-  const motivo = prompt("Por favor, informe o motivo ou sugira uma nova data/horário:");
-  if (motivo !== null) {
-    const v = visits.find(item => item.id === id);
-    if (v) {
-      v.status = "Reagendar / Não autorizado";
-      v.motivo_recusa = motivo || "Cliente não informou o motivo";
-      localStorage.setItem("wa_visits", JSON.stringify(visits));
-    }
-    const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
-    if (supabaseClient && realDbId) {
-      supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: "Motivo: " + (motivo || "Não informado") }).eq("id", realDbId);
-    }
-    alert("Agradecemos o aviso! Entraremos em contato para combinar uma nova data.");
-    renderClientVisitView(id);
-  }
-}
-
-// Inicialização imediata à prova de falhas
-checkRoute();
-if (supabaseClient) {
-  syncFromSupabase();
 }
 </script>
 </body>
