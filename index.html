@@ -194,7 +194,7 @@ try {
 let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
 let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
 let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
-let activeTab = localStorage.getItem("wa_active_tab") || "visits";
+let activeTab = localStorage.getItem("wa_active_tab") || "orders";
 
 let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
 let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
@@ -202,7 +202,7 @@ let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 
 function formatarDataBR(dataIso) {
   if (!dataIso) return "";
-  const partes = dataIso.split("-");
+  const partes = String(dataIso).split("T")[0].split("-");
   if (partes.length === 3) {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
@@ -262,14 +262,15 @@ async function syncFromSupabase() {
   }
 }
 
-function checkRoute() {
+async function checkRoute() {
   const params = new URLSearchParams(window.location.search);
   const clienteId = params.get("cliente");
   const visitaId = params.get("visita");
+
   if (visitaId) {
-    renderClientVisitView(visitaId);
+    await renderClientVisitView(visitaId);
   } else if (clienteId) {
-    renderClientView(clienteId);
+    await renderClientView(clienteId);
   } else if (!isUnlocked) {
     renderLockScreen();
   } else {
@@ -312,7 +313,7 @@ function renderLockScreen() {
     <div class="lock-screen">
       <div style="font-size:42px; margin-bottom:10px;">🔒</div>
       <h2 style="color:var(--navy); margin-bottom:6px;">Acesso Restrito</h2>
-      <p style="color:var(--muted); font-size:13px; margin-bottom:18px;">Digite a sua senha para aceder às ordens, clientes e visitas técnicas.</p>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:18px;">Digite a sua senha para acessar as ordens, clientes e visitas técnicas.</p>
       <form onsubmit="unlock(event)">
         <div class="field">
           <input type="password" id="pinInput" placeholder="Senha (Padrão: 1234)" autofocus required style="text-align:center; font-size:18px; letter-spacing:3px;">
@@ -456,7 +457,7 @@ function renderOrders() {
               </div>
               ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue);">📷 Ver Foto do Aparelho Cadastrada</a></div>` : ''}
               <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-                <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
+                <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
                 <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
                 <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
                 <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
@@ -522,7 +523,7 @@ function renderVisits() {
         <h2>＋ Agendar Visita Técnica</h2>
         <form onsubmit="saveVisit(event)">
           <div class="field">
-            <label>Nome do Cliente * (Digite ou clique para abrir o menu)</label>
+            <label>Nome do Cliente * (Clique ou comece a digitar)</label>
             <input 
               id="vNome" 
               required 
@@ -542,7 +543,7 @@ function renderVisits() {
               <input id="vTelefone" placeholder="84988887777" inputmode="tel">
             </div>
             <div class="field">
-              <label>Data da Visita * (Dia/Mês/Ano)</label>
+              <label>Data da Visita *</label>
               <input type="date" id="vData" required value="${new Date().toISOString().split('T')[0]}">
             </div>
           </div>
@@ -558,7 +559,7 @@ function renderVisits() {
               </select>
             </div>
             <div class="field">
-              <label>Aparelho / Equipamento *</label>
+              <label>Aparelho / Equipamento a Coletar *</label>
               <input id="vAparelho" required placeholder="Ex.: Geladeira Frost Free">
             </div>
           </div>
@@ -584,10 +585,10 @@ function renderVisits() {
                 <span class="tag ${v.status}">${v.status}</span>
               </div>
               <p style="font-size:13px; color:var(--blue); font-weight:700; margin:4px 0;">📅 ${formatarDataBR(v.data_visita)} · ⏰ ${v.horario_visita}</p>
-              <p style="font-size:13px; color:#334155; margin:2px 0;"><strong>Equipamento / Aparelho:</strong> ${v.aparelho_motivo}</p>
+              <p style="font-size:13px; color:#334155; margin:2px 0;"><strong>Equipamento:</strong> ${v.aparelho_motivo}</p>
               <p style="font-size:13px; color:var(--muted); margin:2px 0;">📍 ${v.endereco}</p>
               ${v.observacoes ? `<p style="font-size:12px; color:#64748b; margin-top:4px;"><em>Obs: ${v.observacoes}</em></p>` : ''}
-              ${v.motivo_recusa ? `<p style="font-size:12px; color:var(--red); margin-top:4px; font-weight:700;">⚠️ Motivo da não autorização: ${v.motivo_recusa}</p>` : ''}
+              ${v.motivo_recusa ? `<p style="font-size:12px; color:var(--red); margin-top:4px; font-weight:700;">⚠️ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
               <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
                 <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="sendVisitConfirmationToWhatsApp('${v.telefone}', '${encodeURIComponent(v.cliente_nome)}', '${v.data_visita}', '${encodeURIComponent(v.horario_visita)}', '${encodeURIComponent(v.aparelho_motivo)}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
                 <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="openMaps('${encodeURIComponent(v.endereco)}')">🗺️ Rota no Maps</button>
@@ -624,38 +625,105 @@ function autoFillOrderClient(valorDigitado) {
   }
 }
 
-function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, aparelho, visitId) {
-  const cleanPhone = (phone || "").replace(/\D/g, "");
+// Envia mensagem de Orçamento via WhatsApp
+function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
+  const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) {
-    alert("Esta visita não possui o WhatsApp do cliente registrado.");
+    alert("Esta ordem não possui o WhatsApp do cliente cadastrado.");
     return;
   }
   
   const nomeCliente = decodeURIComponent(clientName);
-  const nomeAparelho = decodeURIComponent(aparelho);
-  const horarioTxt = decodeURIComponent(horario);
-  const dataFormatada = formatarDataBR(dataIso);
-  const linkOnline = window.location.origin + window.location.pathname + "?visita=" + visitId;
+  const nomeAparelho = decodeURIComponent(appliance);
+  const detalhesTxt = decodeURIComponent(details || "");
+  const foto = decodeURIComponent(photoUrl || "");
+
+  // Link online público do GitHub Pages
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  let linkOnlineSecao = "";
+  if (publicBaseUrl && publicBaseUrl.startsWith("http")) {
+    const urlOs = publicBaseUrl.replace(/\/$/, "") + "?cliente=" + orderId;
+    linkOnlineSecao = `\n👉 *Clique aqui para ver a foto, detalhes e aprovar online:*\n${urlOs}\n`;
+  } else if (window.location.protocol.startsWith("http") && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")) {
+    const urlOs = window.location.origin + window.location.pathname + "?cliente=" + orderId;
+    linkOnlineSecao = `\n👉 *Clique aqui para ver a foto, detalhes e aprovar online:*\n${urlOs}\n`;
+  }
+
+  let fotoSecao = "";
+  if (foto && foto.startsWith("http")) {
+    fotoSecao = `\n📷 *Foto do Aparelho:* ${foto}\n`;
+  }
+
+  const companyNum = (companyWhatsApp || "").replace(/\D/g, "");
+  const targetCompany = companyNum ? (companyNum.startsWith("55") ? companyNum : "55" + companyNum) : "";
+  let quickActions = "";
+  if (targetCompany) {
+    const msgAprovar = encodeURIComponent(`Olá WA Resolve! APROVO o orçamento da Ordem ${orderId} para o conserto do(a)${nomeAparelho}!`);
+    const msgRecusar = encodeURIComponent(`Olá WA Resolve! NÃO APROVO o orçamento da Ordem ${orderId}. O motivo é: `);
+    quickActions = `\n👉 *Ou responda direto aqui:*\n✅ Aprovar Orçamento: https://wa.me/${targetCompany}?text=${msgAprovar}\n❌ Recusar Orçamento: https://wa.me/${targetCompany}?text=${msgRecusar}\n`;
+  }
 
   const texto = 
-`🔧 *WA RESOLVE | ASSISTÊNCIA TÉCNICA* 🔧
+`🔧 *WA RESOLVE | ORÇAMENTO TÉCNICO* 🔧
+------------------------------------------
+Olá, *${nomeCliente}*!
+
+Finalizamos a avaliação técnica do seu equipamento:
+📦 *Aparelho:* ${nomeAparelho}
+${detalhesTxt ? `🛠️ *Diagnóstico / Serviços:* ${detalhesTxt}\n` : ""}💰 *Valor Total do Orçamento:* R$ ${Number(price).toFixed(2)}
+${fotoSecao}------------------------------------------
+${linkOnlineSecao}${quickActions}
+Aguardamos sua resposta!
+WA Resolve Assistência Técnica`;
+
+  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
+  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
+  window.open(url, "_blank");
+}
+
+// Envia mensagem de Coleta/Visita
+function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, aparelho, visitId) {
+  const cleanPhone = (phone || "").replace(/\D/g, "");
+  if (!cleanPhone) {
+    alert("Esta visita não possui o WhatsApp do cliente cadastrado.");
+    return;
+  }
+  
+  const nomeCliente = decodeURIComponent(clientName);
+  const nomeAparelho = decodeURIComponent(aparelho || "Equipamento");
+  const horarioTxt = decodeURIComponent(horario);
+  const dataFormatada = formatarDataBR(dataIso);
+
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  let linkOnlineSecao = "";
+  if (publicBaseUrl && publicBaseUrl.startsWith("http")) {
+    const urlVisita = publicBaseUrl.replace(/\/$/, "") + "?visita=" + visitId;
+    linkOnlineSecao = `\n👉 *Clique aqui para responder SIM ou NÃO online:*\n${urlVisita}\n`;
+  } else if (window.location.protocol.startsWith("http") && !window.location.hostname.includes("localhost") && !window.location.hostname.includes("127.0.0.1")) {
+    const urlVisita = window.location.origin + window.location.pathname + "?visita=" + visitId;
+    linkOnlineSecao = `\n👉 *Clique aqui para responder SIM ou NÃO online:*\n${urlVisita}\n`;
+  }
+
+  const companyNum = (companyWhatsApp || "").replace(/\D/g, "");
+  const targetCompany = companyNum ? (companyNum.startsWith("55") ? companyNum : "55" + companyNum) : "";
+  let quickActions = "";
+  if (targetCompany) {
+    const msgSim = encodeURIComponent(`Olá WA Resolve! Confirmado (SIM), pode comparecer para coletar o equipamento (${nomeAparelho}) no dia ${dataFormatada}!`);
+    const msgNao = encodeURIComponent(`Olá WA Resolve! Não posso receber a coleta no dia ${dataFormatada}. O motivo é: `);
+    quickActions = `\n👉 *Ou responda direto aqui:*\\n✅ Confirmar SIM: https://wa.me/${targetCompany}?text=${msgSim}\n❌ Reagendar NÃO: https://wa.me/${targetCompany}?text=${msgNao}\n`;
+  }
+
+  const texto = 
+`🔧 *WA RESOLVE | CENTRAL DE SERVIÇOS* 🔧
 ------------------------------------------
 Olá, *${nomeCliente}*! Tudo bem?
 
-Gostaríamos de confirmar se a equipe da *WA Resolve* pode coletar / avaliar o seu equipamento:
+Gostaríamos de confirmar se a equipe da *WA Resolve* pode comparecer para coletar / avaliar o seu equipamento:
 📦 *Equipamento:* ${nomeAparelho}
 📅 *Data:* ${dataFormatada}
 ⏰ *Horário:* ${horarioTxt}
-
-Por favor, confirme se podemos comparecer:
-
-👉 *[CLIQUE AQUI PARA RESPONDER SIM OU NÃO ONLINE]:*
-${linkOnline}
-
-Ou responda diretamente aqui no WhatsApp:
-✅ *SIM*, pode coletar.
-❌ *NÃO* (se não puder, por favor informe o motivo ou uma nova data).
-
+------------------------------------------
+${linkOnlineSecao}${quickActions}
 Agradecemos a confiança!`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
@@ -663,92 +731,52 @@ Agradecemos a confiança!`;
   window.open(url, "_blank");
 }
 
-function renderClientVisitView(id) {
-  const v = visits.find(item => item.id === id);
-  if (!v) {
-    document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Visita não encontrada</h2><p>Verifique o link enviado.</p></div>`;
-    return;
-  }
-  
-  const dataFormatada = formatarDataBR(v.data_visita);
-  const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
+// Tela de Orçamento que o cliente abre no celular dele
+async function renderClientView(id) {
+  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2><p>Aguarde um instante.</p></div>`;
 
-  document.getElementById("app").innerHTML = `
-    <header class="top">
-      <div class="brand">
-        <div class="brand-badge">WA RESOLVE</div>
-        <span>Confirmação de Coleta / Visita Técnica</span>
-      </div>
-    </header>
-    <div style="max-width:600px; margin:30px auto; background:#fff; border-radius:14px; padding:24px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-      <div style="text-align:center; margin-bottom:20px;">
-        <span class="tag ${v.status}" style="font-size:13px; padding:6px 14px;">Status: ${v.status}</span>
-        <h2 style="color:var(--navy); margin-top:12px;">Coleta de Equipamento</h2>
-        <p style="color:var(--muted);">WA Resolve Assistência Técnica</p>
-      </div>
+  let o = orders.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
-      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px;">
-        <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${v.cliente_nome}</p>
-        <p style="margin-bottom:8px;"><strong>Equipamento a ser coletado:</strong> <span style="color:var(--blue); font-weight:700;">${v.aparelho_motivo}</span></p>
-        <p style="margin-bottom:8px;"><strong>Data Prevista:</strong> 📅 ${dataFormatada}</p>
-        <p style="margin-bottom:8px;"><strong>Horário Previsto:</strong> ⏰ ${v.horario_visita}</p>
-        <p style="margin-bottom:0;"><strong>Endereço:</strong> 📍 ${v.endereco}</p>
-      </div>
-
-      <div style="text-align:center; margin-bottom:16px;">
-        <h3 style="font-size:16px; color:var(--navy); margin-bottom:8px;">Podemos comparecer para coletar o seu equipamento?</h3>
-      </div>
-
-      <div style="display:grid; gap:10px;">
-        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}')">✅ SIM, pode coletar no horário previsto</button>
-        <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="recusarColetaCliente('${v.id}')">❌ NÃO, não poderei receber (informar motivo)</button>
-      </div>
-
-      ${companyPhoneClean ? `
-        <div style="margin-top:20px; text-align:center;">
-          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar no WhatsApp da Assistência</button>
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function confirmarColetaCliente(id) {
-  const v = visits.find(item => item.id === id);
-  if (v) {
-    v.status = "Confirmada";
-    localStorage.setItem("wa_visits", JSON.stringify(visits));
-    if (supabaseClient && v.dbId) {
-      supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", v.dbId);
+  // Se não estiver no cache local do celular do cliente, busca DIRETAMENTE do Supabase!
+  if (!o && supabaseClient) {
+    try {
+      const numId = id.replace(/\D/g, "");
+      let query = supabaseClient.from("ordens_servico").select("*, clientes(*)");
+      if (numId) {
+        query = query.eq("id", numId);
+      } else {
+        query = query.limit(1);
+      }
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        const d = data[0];
+        o = {
+          id: "WR-" + d.id,
+          dbId: d.id,
+          name: d.clientes ? d.clientes.nome : "Cliente",
+          phone: d.clientes ? d.clientes.telefone : "",
+          appliance: d.titulo_servico || "Aparelho",
+          brand: d.marca || "",
+          problem: d.defeito || d.descricao || "",
+          diagnosis: d.diagnostico || "",
+          price: Number(d.orcamento) || 0,
+          refusalFee: Number(d.taxa_recusa) || 0,
+          photoUrl: d.foto_url || "",
+          status: d.status || "Aguardando aprovação",
+          created: d.created_at
+        };
+      }
+    } catch(err) {
+      console.warn("Erro ao buscar ordem na nuvem:", err);
     }
-    alert("✅ Muito obrigado! Sua visita foi confirmada. Nossa equipe estará no local no horário agendado.");
-    renderClientVisitView(id);
   }
-}
 
-function recusarColetaCliente(id) {
-  const v = visits.find(item => item.id === id);
-  if (!v) return;
-
-  const motivo = prompt("Por favor, digite o motivo de não poder receber a equipe ou sugira uma nova data/horário:");
-  if (motivo !== null) {
-    v.status = "Reagendar / Não autorizado";
-    v.motivo_recusa = motivo || "Cliente não informou o motivo";
-    localStorage.setItem("wa_visits", JSON.stringify(visits));
-
-    if (supabaseClient && v.dbId) {
-      supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: (v.observacoes || "") + " | Motivo recusa: " + v.motivo_recusa }).eq("id", v.dbId);
-    }
-
-    alert("Agradecemos o aviso! A assistência técnica foi notificada sobre o motivo para combinarmos um novo momento.");
-    renderClientVisitView(id);
-  }
-}
-
-function renderClientView(id) {
-  const o = orders.find(item => item.id === id);
   if (!o) {
-    document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2><p>Verifique o link enviado.</p></div>`;
+    document.getElementById("app").innerHTML = `
+      <div style="text-align:center; padding:60px; max-width:500px; margin:0 auto;">
+        <h2 style="color:var(--navy);">Ordem não encontrada</h2>
+        <p style="color:var(--muted); margin-top:8px;">Verifique o link enviado ou entre em contato com a assistência.</p>
+      </div>`;
     return;
   }
   
@@ -757,7 +785,7 @@ function renderClientView(id) {
     ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>`
     : '';
 
-  const photoHtml = o.photoUrl ? `<div style="margin:16px 0; text-align:center;"><img src="${o.photoUrl}" alt="Aparelho" style="max-width:100%; max-height:260px; border-radius:10px; border:1px solid var(--line);"></div>` : '';
+  const photoHtml = o.photoUrl ? `<div style="margin:16px 0; text-align:center;"><img src="${o.photoUrl}" alt="Aparelho" style="max-width:100%; max-height:280px; border-radius:10px; border:1px solid var(--line); object-fit:contain;"></div>` : '';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
@@ -766,9 +794,9 @@ function renderClientView(id) {
         <span>Acompanhamento de Orçamento</span>
       </div>
     </header>
-    <div style="max-width:600px; margin:30px auto; background:#fff; border-radius:14px; padding:24px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-      <div style="text-align:center; margin-bottom:20px;">
-        <span class="tag ${o.status.replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">${o.status}</span>
+    <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:14px; padding:22px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
+      <div style="text-align:center; margin-bottom:18px;">
+        <span class="tag ${String(o.status).replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">Status: ${o.status}</span>
         <h2 style="color:var(--navy); margin-top:10px;">${o.appliance}</h2>
         <p style="color:var(--muted);">${o.brand ? o.brand + ' · ' : ''}Ordem ${o.id}</p>
       </div>
@@ -784,393 +812,94 @@ function renderClientView(id) {
       </div>
 
       <div style="margin-top:20px; display:grid; gap:10px;">
-        <button class="primary" style="width:100%; padding:12px; background:var(--green);" onclick="clientActionOrder('${o.id}', 'Em conserto')">✅ Aprovar Orçamento</button>
-        <button class="danger-btn" style="width:100%; padding:12px;" onclick="clientActionOrder('${o.id}', 'Não aprovado')">❌ Não Aprovar (Recusar)</button>
+        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Em conserto', ${o.dbId})">✅ Aprovar Orçamento</button>
+        <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId})">❌ Não Aprovar (Recusar)</button>
         ${contactCompanyBtn}
       </div>
     </div>
   `;
 }
 
-function clientActionOrder(id, newStatus) {
+// Ação de aprovar/recusar que grava no Supabase e atualiza a tela
+async function clientActionOrder(id, newStatus, dbId) {
   const o = orders.find(item => item.id === id);
   if (o) {
     o.status = newStatus;
     localStorage.setItem("wa_orders", JSON.stringify(orders));
-    if (supabaseClient && o.dbId) {
-      supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", o.dbId);
-    }
-    if (newStatus === "Em conserto") {
-      alert("Orçamento aprovado com sucesso! Já estamos a providenciar o conserto.");
-    } else {
-      alert("Orçamento recusado registado. Agradecemos a confiança.");
-    }
-    renderClientView(id);
-  }
-}
-
-function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl) {
-  const cleanPhone = (clientPhone || "").replace(/\D/g, "");
-  if (!cleanPhone) {
-    alert("Esta ordem não possui o WhatsApp do cliente registado.");
-    return;
   }
   
-  const link = window.location.origin + window.location.pathname + "?cliente=" + orderId;
-  let fotoTxt = photoUrl ? `\n\n📷 Foto do Aparelho: ${decodeURIComponent(photoUrl)}` : '';
-  const texto = `Olá, ${decodeURIComponent(clientName)}! Segue o link de visualização e aprovação do orçamento para o conserto do seu(sua) ${decodeURIComponent(appliance)} na WA Resolve:\n\n💰 Valor: R$ ${Number(price).toFixed(2)}${fotoTxt}\n\n👉 Clique para aprovar ou recusar online:\n${link}`;
+  const realDbId = dbId || (o ? o.dbId : id.replace(/\D/g, ""));
+  if (supabaseClient && realDbId) {
+    await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
+  }
   
-  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
-  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
-  window.open(url, "_blank");
+  if (newStatus === "Em conserto") {
+    alert("✅ Orçamento aprovado com sucesso! Já estamos providenciando o conserto do seu equipamento.");
+  } else {
+    alert("Orçamento registrado como não aprovado. Agradecemos a atenção.");
+  }
+  await renderClientView(id);
 }
 
-function openWaDirect(phone, msg) {
-  const clean = (phone || "").replace(/\D/g, "");
-  if (!clean) return alert("Telefone não informado.");
-  const full = clean.startsWith("55") ? clean : "55" + clean;
-  window.open(`https://wa.me/${full}?text=${msg}`, "_blank");
-}
+// Tela de Visita que o cliente abre no celular dele
+async function renderClientVisitView(id) {
+  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando visita...</h2><p>Aguarde um instante.</p></div>`;
 
-async function saveOrder(e) {
-  e.preventDefault();
-  const name = document.getElementById("osName").value.trim();
-  const phone = document.getElementById("osPhone").value.trim();
-  const appliance = document.getElementById("osAppliance").value.trim();
-  const brand = document.getElementById("osBrand").value.trim();
-  const problem = document.getElementById("osProblem").value.trim();
-  const diagnosis = document.getElementById("osDiagnosis").value.trim();
-  const price = parseFloat(document.getElementById("osPrice").value) || 0;
-  const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
-  const photoUrl = document.getElementById("osPhoto").value.trim();
-  const status = "Aguardando aprovação";
+  let v = visits.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
-  const tempId = "WR-" + Math.floor(1000 + Math.random() * 9000);
-  const newOrder = { id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, created: new Date().toISOString() };
-  orders.push(newOrder);
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-  
-  alert("Ordem " + tempId + " cadastrada com sucesso!");
-  renderDashboard();
-
-  if (supabaseClient) {
+  // Busca do Supabase se não estiver no celular do cliente
+  if (!v && supabaseClient) {
     try {
-      let cId = null;
-      let { data: existingClient } = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
-      
-      if (existingClient && existingClient.length > 0) {
-        cId = existingClient[0].id;
+      const numId = id.replace(/\D/g, "");
+      let query = supabaseClient.from("visitas").select("*");
+      if (numId) {
+        query = query.eq("id", numId);
       } else {
-        let resClient = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select();
-        if (resClient.data && resClient.data.length > 0) {
-          cId = resClient.data[0].id;
-        }
+        query = query.limit(1);
       }
-
-      let osRes = await supabaseClient.from("ordens_servico").insert([{
-        cliente_id: cId,
-        titulo_servico: appliance,
-        marca: brand,
-        defeito: problem,
-        diagnostico: diagnosis,
-        orcamento: price,
-        taxa_recusa: refusalFee,
-        foto_url: photoUrl,
-        status: status
-      }]).select();
-
-      if (osRes.error) {
-        osRes = await supabaseClient.from("ordens_servico").insert([{
-          cliente_id: cId,
-          titulo_servico: appliance + (brand ? " · " + brand : ""),
-          descricao: (problem || "") + " | " + (diagnosis || ""),
-          orcamento: price,
-          status: status
-        }]).select();
-      }
-
-      if (osRes.data && osRes.data[0]) {
-        newOrder.dbId = osRes.data[0].id;
-        localStorage.setItem("wa_orders", JSON.stringify(orders));
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        const item = data[0];
+        v = {
+          id: "VIS-" + item.id,
+          dbId: item.id,
+          cliente_nome: item.cliente_nome,
+          telefone: item.telefone,
+          endereco: item.endereco,
+          data_visita: item.data_visita,
+          horario_visita: item.horario_visita,
+          aparelho_motivo: item.aparelho_motivo,
+          observacoes: item.observacoes,
+          motivo_recusa: item.motivo_recusa || "",
+          status: item.status
+        };
       }
     } catch(err) {
-      console.warn("Erro ao salvar OS na nuvem:", err);
+      console.warn("Erro ao buscar visita na nuvem:", err);
     }
   }
-}
 
-async function saveClient(e) {
-  e.preventDefault();
-  const nome = document.getElementById("cNome").value.trim();
-  const telefone = document.getElementById("cTelefone").value.trim();
-  const endereco = document.getElementById("cEndereco") ? document.getElementById("cEndereco").value.trim() : "";
-
-  // 1. Salva localmente primeiro
-  const tempClient = { id: Date.now(), nome, telefone, endereco };
-  clients.push(tempClient);
-  localStorage.setItem("wa_clients", JSON.stringify(clients));
-  renderDashboard();
-
-  // 2. Grava no Supabase
-  if (supabaseClient) {
-    try {
-      let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
-      if (error) {
-        alert("Aviso do Supabase ao salvar:\n\n" + error.message);
-      } else if (data && data[0]) {
-        tempClient.id = data[0].id;
-        localStorage.setItem("wa_clients", JSON.stringify(clients));
-        alert("✅ Cliente " + nome + " gravado com sucesso no Supabase! (ID: " + data[0].id + ")");
-      }
-    } catch (err) {
-      console.warn("Exceção Supabase:", err);
-    }
-  }
-  syncFromSupabase();
-}
-
-function openKeyModal() {
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurar Chave Anon do Supabase</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Chave pública configurada no sistema.</p>
-      <div class="field">
-        <label>URL do Projeto</label>
-        <input type="text" value="${SUPABASE_URL}" readonly style="background:#f1f5f9;">
-      </div>
-      <div class="field">
-        <label>Chave Anon</label>
-        <textarea id="modalKeyInput" rows="3" readonly style="background:#f1f5f9;">${supabaseKey}</textarea>
-      </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
-        <button class="primary" onclick="this.closest('.modal').remove()">Fechar</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-async function testDirectSupabase() {
-  if (!supabaseClient) {
-    openKeyModal();
+  if (!v) {
+    document.getElementById("app").innerHTML = `
+      <div style="text-align:center; padding:60px; max-width:500px; margin:0 auto;">
+        <h2 style="color:var(--navy);">Visita não encontrada</h2>
+        <p style="color:var(--muted); margin-top:8px;">Verifique o link enviado ou entre em contato com a assistência.</p>
+      </div>`;
     return;
   }
-  const testeNome = "Teste " + Math.floor(Math.random() * 900);
-  try {
-    const { data, error } = await supabaseClient.from("clientes").insert([{ nome: testeNome, telefone: "84999990000" }]).select();
-    if (error) {
-      alert("❌ O Supabase recusou:\n\n" + error.message);
-    } else {
-      alert("🎉 Conectado com sucesso! Registro criado no banco de dados com ID: " + data[0].id);
-      syncFromSupabase();
-    }
-  } catch (e) {
-    alert("Erro de conexão: " + e.message);
-  }
-}
-
-function editClient(id) {
-  const c = clients.find(item => String(item.id) === String(id));
-  if (!c) return;
-
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:12px;">✏️ Editar Cliente</h3>
-      <form onsubmit="updateClient(event, '${c.id}')">
-        <div class="field">
-          <label>Nome Completo *</label>
-          <input id="editCNome" required value="${c.nome}">
-        </div>
-        <div class="field">
-          <label>Telefone / WhatsApp *</label>
-          <input id="editCTelefone" required value="${c.telefone || ''}" inputmode="tel">
-        </div>
-        <div class="field">
-          <label>Endereço Completo</label>
-          <textarea id="editCEndereco" rows="3">${c.endereco || ''}</textarea>
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
-          <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
-          <button type="submit" class="primary">Salvar Alterações</button>
-        </div>
-      </form>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-async function updateClient(e, id) {
-  e.preventDefault();
-  const nome = document.getElementById("editCNome").value.trim();
-  const telefone = document.getElementById("editCTelefone").value.trim();
-  const endereco = document.getElementById("editCEndereco").value.trim();
-
-  const c = clients.find(item => String(item.id) === String(id));
-  if (c) {
-    c.nome = nome;
-    c.telefone = telefone;
-    c.endereco = endereco;
-    localStorage.setItem("wa_clients", JSON.stringify(clients));
-
-    if (supabaseClient) {
-      try {
-        await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
-      } catch(err) {
-        console.warn("Erro ao atualizar cliente:", err);
-      }
-    }
-  }
-
-  document.querySelector(".modal").remove();
-  alert("Cliente atualizado com sucesso!");
-  renderDashboard();
-}
-
-async function deleteClient(id, encodedName) {
-  const nomeCliente = decodeURIComponent(encodedName);
   
-  const confirm1 = confirm(`⚠️ ATENÇÃO:\n\nDeseja realmente excluir o cliente "${nomeCliente}"?\n\nEsta ação não poderá ser desfeita.`);
-  if (!confirm1) return;
+  const dataFormatada = formatarDataBR(v.data_visita);
+  const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
 
-  const confirm2 = confirm(`🚨 ÚLTIMA CONFIRMAÇÃO:\n\nTem certeza absoluta que deseja apagar os dados de "${nomeCliente}" do sistema e da nuvem? Clique em OK para confirmar.`);
-  if (!confirm2) return;
-
-  clients = clients.filter(item => String(item.id) !== String(id));
-  localStorage.setItem("wa_clients", JSON.stringify(clients));
-
-  if (supabaseClient) {
-    try {
-      await supabaseClient.from("clientes").delete().eq("id", id);
-    } catch(err) {
-      console.warn("Erro ao excluir cliente:", err);
-    }
-  }
-
-  alert("Cliente excluído com sucesso!");
-  renderDashboard();
-}
-
-async function deleteOrder(id) {
-  const confirm1 = confirm(`⚠️ Deseja realmente excluir a ordem ${id}?`);
-  if (!confirm1) return;
-
-  const o = orders.find(item => item.id === id);
-  orders = orders.filter(item => item.id !== id);
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-
-  if (supabaseClient && o && o.dbId) {
-    try {
-      await supabaseClient.from("ordens_servico").delete().eq("id", o.dbId);
-    } catch(err) {
-      console.warn("Erro ao excluir OS no Supabase:", err);
-    }
-  }
-
-  alert("Ordem excluída com sucesso!");
-  renderDashboard();
-}
-
-async function saveVisit(e) {
-  e.preventDefault();
-  const cliente_nome = document.getElementById("vNome").value.trim();
-  const telefone = document.getElementById("vTelefone").value.trim();
-  const data_visita = document.getElementById("vData").value;
-  const horario_visita = document.getElementById("vHorario").value;
-  const aparelho_motivo = document.getElementById("vAparelho").value.trim();
-  const endereco = document.getElementById("vEndereco").value.trim();
-  const observacoes = document.getElementById("vObs").value.trim();
-
-  const newVisit = {
-    id: "VIS-" + Math.floor(1000 + Math.random() * 9000),
-    cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
-  };
-  visits.push(newVisit);
-  localStorage.setItem("wa_visits", JSON.stringify(visits));
-  alert("Visita agendada com sucesso!");
-  renderDashboard();
-
-  if (supabaseClient) {
-    try {
-      await supabaseClient.from("visitas").insert([{
-        cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
-      }]);
-    } catch(err) {
-      console.warn("Erro ao salvar visita:", err);
-    }
-  }
-}
-
-function directVisit(nome, tel, end) {
-  setTab("visits");
-  setTimeout(() => {
-    document.getElementById("vNome").value = decodeURIComponent(nome);
-    document.getElementById("vTelefone").value = decodeURIComponent(tel);
-    document.getElementById("vEndereco").value = decodeURIComponent(end);
-    document.getElementById("vAparelho").focus();
-  }, 50);
-}
-
-openMaps = function(endereco) {
-  window.open("https://www.google.com/maps/search/?api=1&query=" + endereco, "_blank");
-};
-
-function copyLink(id) {
-  const url = window.location.origin + window.location.pathname + "?cliente=" + id;
-  navigator.clipboard.writeText(url).then(() => {
-    alert("Link copiado para a área de transferência!\n\n" + url);
-  }).catch(() => {
-    prompt("Copie o link abaixo:", url);
-  });
-}
-
-function changeOrderStatus(id) {
-  const o = orders.find(item => item.id === id);
-  if (!o) return;
-  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Em conserto\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
-  if (!novo) return;
-  if (novo === "1") o.status = "Aguardando aprovação";
-  else if (novo === "2") o.status = "Em conserto";
-  else if (novo === "3") o.status = "Pronto para retirada";
-  else if (novo === "4") o.status = "Concluído";
-  else if (novo === "5") o.status = "Não aprovado";
-  else o.status = novo;
-  
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-  if (supabaseClient && o.dbId) {
-    supabaseClient.from("ordens_servico").update({ status: o.status }).eq("id", o.dbId);
-  }
-  renderDashboard();
-}
-
-function changePin() {
-  const novo = prompt("Digite a nova Senha/PIN de administrador (mínimo 4 caracteres):", adminPin);
-  if (novo && novo.trim().length >= 4) {
-    adminPin = novo.trim();
-    localStorage.setItem("wa_admin_pin", adminPin);
-    alert("Senha alterada com sucesso!");
-  }
-}
-
-function editCompanyWhatsApp() {
-  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com DDD, somente números):", companyWhatsApp || "849...");
-  if (novo !== null) {
-    companyWhatsApp = novo.replace(/\D/g, "");
-    localStorage.setItem("wa_company_phone", companyWhatsApp);
-    alert("WhatsApp da assistência salvo com sucesso! Quando o cliente clicar em 'Falar com a Assistência', falará diretamente com este número.");
-    renderDashboard();
-  }
-}
-
-checkRoute();
-if (supabaseClient) {
-  syncFromSupabase();
-} else {
-  renderDashboard();
-}
-</script>
-</body>
-</html>
+  document.getElementById("app").innerHTML = `
+    <header class="top">
+      <div class="brand">
+        <div class="brand-badge">WA RESOLVE</div>
+        <span>Confirmação de Coleta / Visita Técnica</span>
+      </div>
+    </header>
+    <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:14px; padding:22px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
+      <div style="text-align:center; margin-bottom:18px;">
+        <span class="tag ${v.status}" style="font-size:13px; padding:6px 14px;">Status: ${v.status}</span>
+        <h2 style="color:var(--navy); margin-top:10px;">Coleta de Equipamento</h2>
+        <p
