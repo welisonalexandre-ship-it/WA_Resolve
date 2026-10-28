@@ -1166,7 +1166,7 @@ function editClient(id) {
 async function updateClient(e, id) {
   e.preventDefault();
   const nome = document.getElementById("editCNome").value.trim();
-  const telefone = document.getElementById("editCTelefone").value.trim();
+  const telefone = "84999990000";
   const endereco = document.getElementById("editCEndereco").value.trim();
 
   const c = clients.find(item => String(item.id) === String(id));
