@@ -670,7 +670,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -699,7 +699,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -720,38 +720,38 @@ function renderClientView(id) {
 
   let o = orders.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
-  if (!o && supabaseClient) {
-    supabaseClient.from("ordens_servico").select("*, clientes(*)").then(({data}) => {
-      if (data) {
-        const found = data.find(d => String(d.id) === String(id).replace(/\D/g, "") || "WR-" + d.id === String(id));
-        if (found) {
-          o = {
-            id: "WR-" + found.id,
-            dbId: found.id,
-            name: found.clientes ? found.clientes.nome : "Cliente",
-            phone: found.clientes ? found.clientes.telefone : "",
-            appliance: found.titulo_servico || "Aparelho",
-            brand: found.marca || "",
-            problem: found.defeito || found.descricao || "",
-            diagnosis: found.diagnostico || "",
-            price: Number(found.orcamento) || 0,
-            refusalFee: Number(found.taxa_recusa) || 0,
-            photoUrl: found.foto_url || "",
-            status: found.status || "Aguardando aprovação"
-          };
-          displayClientOrderPage(o);
-          return;
+  if (!o) {
+    if (supabaseClient) {
+      supabaseClient.from("ordens_servico").select("*, clientes(*)").then(({data}) => {
+        if (data) {
+          const found = data.find(d => String(d.id) === String(id).replace(/\D/g, "") || "WR-" + d.id === String(id));
+          if (found) {
+            o = {
+              id: "WR-" + found.id,
+              dbId: found.id,
+              name: found.clientes ? found.clientes.nome : "Cliente",
+              phone: found.clientes ? found.clientes.telefone : "",
+              appliance: found.titulo_servico || "Aparelho",
+              brand: found.marca || "",
+              problem: found.defeito || found.descricao || "",
+              diagnosis: found.diagnostico || "",
+              price: Number(found.orcamento) || 0,
+              refusalFee: Number(found.taxa_recusa) || 0,
+              photoUrl: found.foto_url || "",
+              status: found.status || "Aguardando aprovação"
+            };
+            displayClientOrderPage(o);
+            return;
+          }
         }
-      }
-      document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2><p>Verifique o link ou entre em contato.</p></div>`;
-    });
-    return;
+        document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2><p>Verifique o link ou entre em contato.</p></div>`;
+      });
+      return;
+    }
   }
 
   if (o) {
     displayClientOrderPage(o);
-  } else {
-    document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Ordem não encontrada</h2></div>`;
   }
 }
 
@@ -868,8 +868,6 @@ function renderClientVisitView(id) {
 
   if (v) {
     displayClientVisitPage(v);
-  } else {
-    document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Visita não encontrada</h2></div>`;
   }
 }
 
@@ -949,7 +947,7 @@ function confirmarColetaCliente(id, dbId) {
 function recusarColetaCliente(id, dbId) {
   const motivo = prompt("Por favor, informe o motivo ou sugira uma nova data/horário:");
   if (motivo !== null) {
-    const v = visits.visits ? visits.find(item => item.id === id) : null;
+    const v = visits.find(item => item.id === id);
     if (v) {
       v.status = "Reagendar / Não autorizado";
       v.motivo_recusa = motivo || "Cliente não informou o motivo";
