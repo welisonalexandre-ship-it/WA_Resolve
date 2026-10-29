@@ -183,8 +183,8 @@
     }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
     .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
-    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada { background: #d1fae5; color: #065f46; }
-    .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado { background: #fee2e2; color: var(--red); }
+    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada, .tag.Realizada { background: #d1fae5; color: #065f46; }
+    .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado, .tag.Cancelada { background: #fee2e2; color: var(--red); }
     
     .modal {
       position: fixed; inset: 0; background: rgba(16,43,80,0.5); backdrop-filter: blur(2px);
@@ -303,7 +303,6 @@
       .visit-card-top { align-items:flex-start; }
       .visit-actions button { flex: 1 1 auto; }
     }
-
   </style>
 </head>
 <body>
@@ -381,6 +380,7 @@ function syncFromSupabase() {
       });
       clients = clients.concat(clients.filter(lc => !cData.some(dc => String(dc.id) === String(lc.id))));
       localStorage.setItem("wa_clients", JSON.stringify(clients));
+      if (isUnlocked && activeTab === 'clients' && !window.location.search) renderDashboard();
     }
   });
 
@@ -402,6 +402,7 @@ function syncFromSupabase() {
         created: d.created_at
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
+      if (isUnlocked && activeTab === 'orders' && !window.location.search) renderDashboard();
     }
   });
 
@@ -421,7 +422,7 @@ function syncFromSupabase() {
         status: v.status || "Agendada"
       }));
       localStorage.setItem("wa_visits", JSON.stringify(visits));
-      if (activeTab === 'visits') renderDashboard();
+      if (isUnlocked && activeTab === 'visits' && !window.location.search) renderDashboard();
     }
   });
 }
@@ -851,6 +852,46 @@ function autoFillOrderClient(valorDigitado) {
   }
 }
 
+function directVisit(nome, tel, end) {
+  setTab("visits");
+  setTimeout(() => {
+    const vNome = document.getElementById("vNome");
+    const vTel = document.getElementById("vTelefone");
+    const vEnd = document.getElementById("vEndereco");
+    const vApa = document.getElementById("vAparelho");
+    if (vNome) vNome.value = decodeURIComponent(nome);
+    if (vTel) vTel.value = decodeURIComponent(tel);
+    if (vEnd) vEnd.value = decodeURIComponent(end);
+    if (vApa) vApa.focus();
+  }, 50);
+}
+
+function openWaDirect(phone, msg) {
+  const clean = (phone || "").replace(/\D/g, "");
+  if (!clean) return alert("Telefone não informado.");
+  const full = clean.startsWith("55") ? clean : "55" + clean;
+  window.open(`https://wa.me/${full}?text=${msg}`, "_blank");
+}
+
+function changeVisitStatus(id) {
+  const v = visits.find(item => String(item.id) === String(id));
+  if (!v) return;
+  const novo = prompt("Novo status da visita:\n1 - Agendada\n2 - Confirmada\n3 - Realizada\n4 - Reagendar / Não autorizado\n5 - Cancelada", v.status);
+  if (!novo) return;
+  if (novo === "1") v.status = "Agendada";
+  else if (novo === "2") v.status = "Confirmada";
+  else if (novo === "3") v.status = "Realizada";
+  else if (novo === "4") v.status = "Reagendar / Não autorizado";
+  else if (novo === "5") v.status = "Cancelada";
+  else v.status = novo;
+
+  localStorage.setItem("wa_visits", JSON.stringify(visits));
+  if (supabaseClient && v.dbId) {
+    supabaseClient.from("visitas").update({ status: v.status }).eq("id", v.dbId);
+  }
+  renderDashboard();
+}
+
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
   const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) {
@@ -870,8 +911,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
-${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}
-` : ""}
+${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
 👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
 ${urlOs}`;
 
@@ -1021,7 +1061,7 @@ async function clientActionOrder(id, newStatus, dbId) {
     await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
   }
   
-  alert("✅ Orçamento aprovado! Conserto iniciado.");
+  alert(newStatus.includes("Aprovado") ? "✅ Orçamento aprovado! Conserto iniciado." : "Orçamento atualizado.");
   renderClientView(id);
 }
 
@@ -1389,7 +1429,10 @@ async function updateClient(e, id) {
 
     if (supabaseClient) {
       try {
-        await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
+        let { error } = await supabaseClient.from("clientes").update({ nome, telefone, endereco }).eq("id", id);
+        if (error) {
+          await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
+        }
       } catch(err) {
         console.warn("Erro ao atualizar cliente:", err);
       }
