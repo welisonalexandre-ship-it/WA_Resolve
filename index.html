@@ -726,7 +726,7 @@ function renderVisits() {
   const filteredVisits = visits.filter(v => {
     if (!visitSearchQuery) return true;
     const q = visitSearchQuery.toLowerCase();
-    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
+    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) || 
            (v.endereco && v.endereco.toLowerCase().includes(q)) ||
            (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
   });
@@ -903,7 +903,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -932,7 +932,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
