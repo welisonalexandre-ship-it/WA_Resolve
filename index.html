@@ -973,38 +973,30 @@ function renderClientView(id) {
 
   document.getElementById("app").innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
 
-  let o = orders.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
+  let cleanId = String(id).replace(/\D/g, "");
 
-  if (!o && supabaseClient) {
-    supabaseClient.from("ordens_servico").select("*, clientes(*)").then(({data}) => {
-      if (data) {
-        const found = data.find(d => String(d.id) === String(id).replace(/\D/g, "") || "WR-" + d.id === String(id));
-        if (found) {
-          o = {
-            id: "WR-" + found.id,
-            dbId: found.id,
-            name: found.clientes ? found.clientes.nome : "Cliente",
-            phone: found.clientes ? found.clientes.telefone : "",
-            appliance: found.titulo_servico || "Aparelho",
-            brand: found.marca || "",
-            problem: found.defeito || found.descricao || "",
-            diagnosis: found.diagnostico || "",
-            price: Number(found.orcamento) || 0,
-            refusalFee: Number(found.taxa_recusa) || 0,
-            photoUrl: found.foto_url || "",
-            status: found.status || "Aguardando aprovação"
-          };
-          displayClientOrderPage(o);
-          return;
-        }
+  if (supabaseClient && cleanId) {
+    supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({data, error}) => {
+      if (!error && data) {
+        const o = {
+          id: "WR-" + data.id,
+          dbId: data.id,
+          name: data.clientes ? data.clientes.nome : "Cliente",
+          phone: data.clientes ? data.clientes.telefone : "",
+          appliance: data.titulo_servico || "Aparelho",
+          brand: data.marca || "",
+          problem: data.defeito || data.descricao || "",
+          diagnosis: data.diagnostico || "",
+          price: Number(data.orcamento) || 0,
+          refusalFee: Number(data.taxa_recusa) || 0,
+          photoUrl: data.foto_url || "",
+          status: data.status || "Aguardando aprovação"
+        };
+        displayClientOrderPage(o);
+      } else {
+        document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
       }
-      document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
     });
-    return;
-  }
-
-  if (o) {
-    displayClientOrderPage(o);
   } else {
     document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
   }
