@@ -18,11 +18,7 @@
       --red: #dc3545;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      color: var(--ink);
-      font: 15px/1.45 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    }
+    body { background: var(--bg); color: var(--ink); font: 15px/1.45 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     button, input, select, textarea { font: inherit; }
     button {
       cursor: pointer;
@@ -202,13 +198,10 @@
   </style>
 </head>
 <body>
-
 <div id="app"></div>
-
 <script>
 const SUPABASE_URL = "https://xuletvulgzdnuukynlhs.supabase.co";
 const FIXED_SUPABASE_KEY = "sb_publishable_j7pad31FTUWcxR7NlpN4ng_HssGl2AC";
-
 let supabaseClient = null;
 try {
   if (window.supabase) {
@@ -377,11 +370,11 @@ function renderLockScreen() {
 
 function renderDashboard() {
   const sbStatus = supabaseClient 
-    ? '<span class="sb-badge sb-on" onclick="openKeyModal()">● Nuvem Conectada</span>'
+    ? '<span class="sb-badge sb-on" onclick="openKeyModal()">● Nuvem Conectada</span>' 
     : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
 
   const companyBadge = companyWhatsApp 
-    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>`
+    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>` 
     : `<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>`;
 
   const brandDisplay = companyLogoUrl 
@@ -601,7 +594,7 @@ function renderVisits() {
     if (!visitSearchQuery) return true;
     const q = visitSearchQuery.toLowerCase();
     return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) || 
-           (v.endereco && v.endereco.toLowerCase().includes(q)) ||
+           (v.endereco && v.endereco.toLowerCase().includes(q)) || 
            (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
   });
 
@@ -730,19 +723,11 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
-  const texto = 
-`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
-
-💰 *Valor:* R$ ${Number(price).toFixed(2)}
-${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}
-` : ""}
-👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
-${urlOs}`;
-
+  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:\n\n💰 *Valor:* R$ ${Number(price).toFixed(2)}${detalhesTxt ? `\n🛠️ *Serviço:* ${detalhesTxt}` : ""}\n\n👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:* \n${urlOs}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
@@ -760,16 +745,11 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
-  const texto = 
-`Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
-
-👉 *Clique para responder SIM ou NÃO online:*
-${urlVisita}`;
-
+  const texto = `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.\n\n👉 *Clique para responder SIM ou NÃO online:* \n${urlVisita}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
@@ -818,7 +798,7 @@ function renderClientView(id) {
 function displayClientOrderPage(o) {
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
   const contactCompanyBtn = companyPhoneClean 
-    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>`
+    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>` 
     : '';
 
   const photoHtml = o.photoUrl ? `
@@ -883,12 +863,12 @@ async function clientActionOrder(id, newStatus, dbId) {
     o.status = newStatus;
     localStorage.setItem("wa_orders", JSON.stringify(orders));
   }
-  
+
   const realDbId = dbId || (o ? o.dbId : id.replace(/\D/g, ""));
   if (supabaseClient && realDbId) {
     await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
   }
-  
+
   alert("✅ Orçamento aprovado! Conserto iniciado.");
   renderClientView(id);
 }
@@ -1041,7 +1021,6 @@ async function deleteVisit(id) {
   renderDashboard();
 }
 
-// Funções de auxílio para Clientes e Ordens
 async function saveOrder(e) {
   e.preventDefault();
   const name = document.getElementById("osName").value.trim();
@@ -1308,9 +1287,9 @@ async function deleteOrder(id) {
   renderDashboard();
 }
 
-openMaps = function(endereco) {
+function openMaps(endereco) {
   window.open("https://www.google.com/maps/search/?api=1&query=" + endereco, "_blank");
-};
+}
 
 function copyLink(id) {
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
@@ -1333,7 +1312,7 @@ function changeOrderStatus(id) {
   else if (novo === "4") o.status = "Concluído";
   else if (novo === "5") o.status = "Não aprovado";
   else o.status = novo;
-  
+
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   if (supabaseClient && o.dbId) {
     supabaseClient.from("ordens_servico").update({ status: o.status }).eq("id", o.dbId);
