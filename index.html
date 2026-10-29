@@ -238,7 +238,14 @@ function syncFromSupabase() {
   if (!supabaseClient) return;
   supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData, error: cErr }) => {
     if (!cErr && cData && cData.length > 0) {
-      clients = cData;
+      // Mesclamos os dados da nuvem com os endereços salvos localmente para garantir que nenhum endereço suma
+      clients = cData.map(dbClient => {
+        const localMatch = clients.find(lc => String(lc.id) === String(dbClient.id) || (lc.nome && dbClient.nome && lc.nome.toLowerCase() === dbClient.nome.toLowerCase()));
+        return {
+          ...dbClient,
+          endereco: dbClient.endereco || (localMatch ? localMatch.endereco : "")
+        };
+      });
       localStorage.setItem("wa_clients", JSON.stringify(clients));
     }
   });
@@ -1059,11 +1066,16 @@ async function saveClient(e) {
 
   if (supabaseClient) {
     try {
-      let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
-      if (!error && data && data[0]) {
+      let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone, endereco: endereco }]).select();
+      if (error) {
+        let res2 = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
+        if (res2.data && res2.data[0]) {
+          tempClient.id = res2.data[0].id;
+        }
+      } else if (data && data[0]) {
         tempClient.id = data[0].id;
-        localStorage.setItem("wa_clients", JSON.stringify(clients));
       }
+      localStorage.setItem("wa_clients", JSON.stringify(clients));
     } catch (err) {
       console.warn("Exceção Supabase:", err);
     }
