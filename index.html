@@ -712,6 +712,19 @@ function autoFillOrderClient(valorDigitado) {
   }
 }
 
+// Verificador inteligente de link público para mobile
+function getActivePublicBaseUrl() {
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  if (publicBaseUrl && publicBaseUrl.startsWith("http")) {
+    return publicBaseUrl.replace(/\/$/, "");
+  }
+  const currentOrigin = window.location.origin;
+  if (currentOrigin.includes("localhost") || currentOrigin.includes("127.0.0.1") || currentOrigin.startsWith("file:")) {
+    console.warn("⚠️ ALERTA WA RESOLVE: O link do GitHub Pages não está configurado em 'Logo / Config'. O cliente no celular não conseguirá abrir links do localhost/file.");
+  }
+  return currentOrigin + window.location.pathname.replace(/\/$/, "");
+}
+
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
   const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) {
@@ -719,15 +732,33 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
     return;
   }
   
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  if (!publicBaseUrl || publicBaseUrl.includes("localhost")) {
+    const querConfig = confirm("⚠️ ATENÇÃO: Seu Link do GitHub Pages não está configurado!
+
+Se você enviar este link agora, o cliente no celular NÃO conseguirá abrir (pois está em localhost/computador).
+
+Deseja configurar o link do GitHub Pages agora?");
+    if (querConfig) {
+      openKeyModal();
+      return;
+    }
+  }
+  
   const nomeCliente = decodeURIComponent(clientName);
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
-  const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
+  const activeBase = getActivePublicBaseUrl();
+  const urlOs = activeBase + "?cliente=" + orderId;
 
-  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:\n\n💰 *Valor:* R$ ${Number(price).toFixed(2)}${detalhesTxt ? `\n🛠️ *Serviço:* ${detalhesTxt}` : ""}\n\n👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:* \n${urlOs}`;
+  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
+
+💰 *Valor:* R$ ${Number(price).toFixed(2)}${detalhesTxt ? `
+🛠️ *Serviço:* ${detalhesTxt}` : ""}
+
+👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:* 
+${urlOs}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
@@ -740,16 +771,29 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
     return;
   }
   
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  if (!publicBaseUrl || publicBaseUrl.includes("localhost")) {
+    const querConfig = confirm("⚠️ ATENÇÃO: Seu Link do GitHub Pages não está configurado!
+
+Deseja configurar o link do GitHub Pages agora antes de enviar?");
+    if (querConfig) {
+      openKeyModal();
+      return;
+    }
+  }
+
   const nomeCliente = decodeURIComponent(clientName);
   const nomeAparelho = decodeURIComponent(aparelho || "Equipamento");
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
-  const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
+  const activeBase = getActivePublicBaseUrl();
+  const urlVisita = activeBase + "?visita=" + visitId;
 
-  const texto = `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.\n\n👉 *Clique para responder SIM ou NÃO online:* \n${urlVisita}`;
+  const texto = `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
+
+👉 *Clique para responder SIM ou NÃO online:* 
+${urlVisita}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
@@ -1292,10 +1336,12 @@ function openMaps(endereco) {
 }
 
 function copyLink(id) {
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
-  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + id;
+  const activeBase = getActivePublicBaseUrl();
+  let url = activeBase + "?cliente=" + id;
   navigator.clipboard.writeText(url).then(() => {
-    alert("Link copiado para a área de transferência!\n\n" + url);
+    alert("Link copiado para a área de transferência!
+
+" + url);
   }).catch(() => {
     prompt("Copie o link abaixo:", url);
   });
@@ -1304,7 +1350,12 @@ function copyLink(id) {
 function changeOrderStatus(id) {
   const o = orders.find(item => item.id === id);
   if (!o) return;
-  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Aprovado - Conserto iniciado\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
+  const novo = prompt("Novo status:
+1 - Aguardando aprovação
+2 - Aprovado - Conserto iniciado
+3 - Pronto para retirada
+4 - Concluído
+5 - Não aprovado", o.status);
   if (!novo) return;
   if (novo === "1") o.status = "Aguardando aprovação";
   else if (novo === "2") o.status = "Aprovado - Conserto iniciado";
