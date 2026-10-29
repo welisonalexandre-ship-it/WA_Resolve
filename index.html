@@ -4,7 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WA Resolve | Central de Serviços</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">// Expõe explicitamente os handlers usados pelos onclick do HTML.
+window.directVisit = directVisit;
+window.openWaDirect = openWaDirect;
+window.editClient = editClient;
+window.deleteClient = deleteClient;
+window.updateClient = updateClient;
+
+</script>
   <style>
     :root {
       --navy: #102b50;
@@ -693,10 +700,10 @@ function renderClients() {
             <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome).replace(/'/g, '%27')}', '${encodeURIComponent(c.telefone||'').replace(/'/g, '%27')}', '${encodeURIComponent(c.endereco||'').replace(/'/g, '%27')}')">📅 Agendar</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome).replace(/'/g, '%27')}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
-            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome)}')">🗑️ Excluir</button>
+            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome).replace(/'/g, '%27')}')">🗑️ Excluir</button>
           </div>
         </div>
       `;
@@ -1355,6 +1362,49 @@ function saveSettingsModal(btn) {
   renderDashboard();
 }
 
+// Escapa texto vindo do cadastro antes de inserir em HTML.
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// Botão Agendar: abre a aba de visitas e preenche os dados do cliente.
+function directVisit(nomeCodificado, telefoneCodificado, enderecoCodificado) {
+  let nome = "", telefone = "", endereco = "";
+  try {
+    nome = decodeURIComponent(nomeCodificado || "");
+    telefone = decodeURIComponent(telefoneCodificado || "");
+    endereco = decodeURIComponent(enderecoCodificado || "");
+  } catch (err) {
+    nome = nomeCodificado || "";
+    telefone = telefoneCodificado || "";
+    endereco = enderecoCodificado || "";
+  }
+  setTab("visits");
+  const nomeInput = document.getElementById("vNome");
+  const telefoneInput = document.getElementById("vTelefone");
+  const enderecoInput = document.getElementById("vEndereco");
+  if (nomeInput) nomeInput.value = nome;
+  if (telefoneInput) telefoneInput.value = telefone;
+  if (enderecoInput) enderecoInput.value = endereco;
+  const aparelhoInput = document.getElementById("vAparelho");
+  if (aparelhoInput) aparelhoInput.focus();
+}
+
+// Botão WhatsApp: normaliza o número e abre uma conversa com mensagem pré-preenchida.
+function openWaDirect(telefone, mensagem) {
+  let numero = String(telefone || "").replace(/\D/g, "");
+  if (!numero) {
+    alert("Este cliente não possui telefone/WhatsApp cadastrado.");
+    return;
+  }
+  if (!numero.startsWith("55")) numero = "55" + numero;
+  const texto = String(mensagem || "Olá! Falamos da assistência técnica WA Resolve.");
+  const url = "https://wa.me/" + numero + "?text=" + encodeURIComponent(texto);
+  window.open(url, "_blank");
+}
+
 function editClient(id) {
   const c = clients.find(item => String(item.id) === String(id));
   if (!c) return;
@@ -1367,15 +1417,15 @@ function editClient(id) {
       <form onsubmit="updateClient(event, '${c.id}')">
         <div class="field">
           <label>Nome Completo *</label>
-          <input id="editCNome" required value="${c.nome}">
+          <input id="editCNome" required value="${escapeHtml(c.nome)}">
         </div>
         <div class="field">
           <label>Telefone / WhatsApp *</label>
-          <input id="editCTelefone" required value="${c.telefone || ''}" inputmode="tel">
+          <input id="editCTelefone" required value="${escapeHtml(c.telefone || '')}" inputmode="tel">
         </div>
         <div class="field">
           <label>Endereço Completo</label>
-          <textarea id="editCEndereco" rows="3">${c.endereco || ''}</textarea>
+          <textarea id="editCEndereco" rows="3">${escapeHtml(c.endereco || '')}</textarea>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
           <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
@@ -1402,7 +1452,11 @@ async function updateClient(e, id) {
 
     if (supabaseClient) {
       try {
-        await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
+        const { error } = await supabaseClient.from("clientes").update({ nome, telefone, endereco }).eq("id", id);
+        if (error) {
+          // Compatibilidade com tabelas antigas que ainda não possuem a coluna endereco.
+          await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
+        }
       } catch(err) {
         console.warn("Erro ao atualizar cliente:", err);
       }
@@ -1415,7 +1469,8 @@ async function updateClient(e, id) {
 }
 
 async function deleteClient(id, encodedName) {
-  const nomeCliente = decodeURIComponent(encodedName);
+  let nomeCliente = encodedName || "este cliente";
+  try { nomeCliente = decodeURIComponent(encodedName || ""); } catch (err) {}
   if (!confirm(`⚠️ Deseja realmente excluir o cliente "${nomeCliente}"?`)) return;
 
   clients = clients.filter(item => String(item.id) !== String(id));
