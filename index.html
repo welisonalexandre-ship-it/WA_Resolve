@@ -4,14 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WA Resolve | Central de Serviços</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">// Expõe explicitamente os handlers usados pelos onclick do HTML.
-window.directVisit = directVisit;
-window.openWaDirect = openWaDirect;
-window.editClient = editClient;
-window.deleteClient = deleteClient;
-window.updateClient = updateClient;
-
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       --navy: #102b50;
@@ -58,9 +51,8 @@ window.updateClient = updateClient;
       flex-wrap: wrap;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .brand { display: flex; align-items: center; gap: 0; flex: 0 0 384px; width: 384px; min-width: 0; }
-    .brand-logo-img { display: block; width: 384px; height: 72px; max-width: 384px; object-fit: contain; object-position: left center; }
-    .brand-logo-placeholder { display: block; width: 384px; height: 72px; border: 1px dashed rgba(255,255,255,.24); border-radius: 7px; box-sizing: border-box; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo-img { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
     .brand-info h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
     .brand-info p { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
     
@@ -191,8 +183,8 @@ window.updateClient = updateClient;
     }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
     .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
-    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada { background: #d1fae5; color: #065f46; }
-    .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado { background: #fee2e2; color: var(--red); }
+    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada, .tag.Realizada { background: #d1fae5; color: #065f46; }
+    .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado, .tag.Cancelada { background: #fee2e2; color: var(--red); }
     
     .modal {
       position: fixed; inset: 0; background: rgba(16,43,80,0.5); backdrop-filter: blur(2px);
@@ -208,7 +200,6 @@ window.updateClient = updateClient;
       box-shadow: 0 15px 35px rgba(0,0,0,0.06);
     }
 
-    /* Layout moderno inspirado no painel de agendamentos */
     body { background: #eef3f9; }
     .top {
       min-height: 74px;
@@ -217,10 +208,10 @@ window.updateClient = updateClient;
       border-bottom: 1px solid rgba(255,255,255,.12);
       border-radius: 0;
     }
-    .brand-logo-img { width: 384px; height: 72px; max-width: 384px; }
-    .brand-logo-placeholder { width: 384px; height: 72px; }
-    .brand-badge { display: none; }
-    @media (max-width: 760px) { .top { padding: 8px 12px; } .brand { flex-basis: min(384px, 100%); width: min(384px, 100%); } .brand-logo-img, .brand-logo-placeholder { width: min(384px, 100%); height: 72px; } .top > div:last-child { width: 100%; } }
+    .brand-logo-img { height: 46px; max-width: 112px; }
+    .brand-badge { background: transparent; color: #fff; border: 0; font-size: 22px; padding: 4px 8px; }
+    .brand-info h1 { font-size: 17px; }
+    .brand-info p { color: #c4d2e5; }
     .top > div:last-child .secondary {
       background: rgba(255,255,255,.08);
       color: #fff;
@@ -311,7 +302,6 @@ window.updateClient = updateClient;
       .visit-card-top { align-items:flex-start; }
       .visit-actions button { flex: 1 1 auto; }
     }
-
   </style>
 </head>
 <body>
@@ -319,19 +309,6 @@ window.updateClient = updateClient;
 <div id="app"></div>
 
 <script>
-// Acesso resiliente ao armazenamento: evita que dados locais inválidos impeçam o site de abrir.
-function safeGet(storage, key, fallback = "") {
-  try { const value = storage.getItem(key); return value === null ? fallback : value; }
-  catch (error) { console.warn("Armazenamento indisponível:", key, error); return fallback; }
-}
-function safeSet(storage, key, value) {
-  try { storage.setItem(key, value); return true; }
-  catch (error) { console.warn("Não foi possível salvar:", key, error); return false; }
-}
-function safeJSON(storage, key, fallback = []) {
-  try { const value = safeGet(storage, key, ""); return value ? JSON.parse(value) : fallback; }
-  catch (error) { console.warn("Dados locais inválidos; usando lista vazia:", key, error); return fallback; }
-}
 const SUPABASE_URL = "https://xuletvulgzdnuukynlhs.supabase.co";
 const FIXED_SUPABASE_KEY = "sb_publishable_j7pad31FTUWcxR7NlpN4ng_HssGl2AC";
 
@@ -344,22 +321,17 @@ try {
   console.warn("Supabase init error:", e);
 }
 
-let companyWhatsApp = safeGet(localStorage, "wa_company_phone") || "";
-let companyLogoUrl = safeGet(localStorage, "wa_company_logo") || "";
-// Logo exclusiva das páginas públicas enviadas aos clientes (orçamento e visita).
-let clientLogoUrl = safeGet(localStorage, "wa_client_logo") || "";
-function getPublicClientLogoUrl() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("logo") || clientLogoUrl || "";
-}
-let adminPin = safeGet(localStorage, "wa_admin_pin") || "1234";
-let isUnlocked = safeGet(sessionStorage, "wa_unlocked") === "true";
-let activeTab = safeGet(localStorage, "wa_active_tab") || "orders";
-let visitSearchQuery = safeGet(localStorage, "wa_visit_search") || "";
+let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
+let companyLogoUrl = localStorage.getItem("wa_company_logo") || "";
+let clientLogoUrl = localStorage.getItem("wa_client_logo") || "";
+let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
+let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
+let activeTab = localStorage.getItem("wa_active_tab") || "orders";
+let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
 
-let orders = safeJSON(localStorage, "wa_orders", []);
-let clients = safeJSON(localStorage, "wa_clients", []);
-let visits = safeJSON(localStorage, "wa_visits", []);
+let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
+let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
+let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 
 function formatarDataBR(dataIso) {
   if (!dataIso) return "";
@@ -407,7 +379,8 @@ function syncFromSupabase() {
         };
       });
       clients = clients.concat(clients.filter(lc => !cData.some(dc => String(dc.id) === String(lc.id))));
-      safeSet(localStorage, "wa_clients", JSON.stringify(clients));
+      localStorage.setItem("wa_clients", JSON.stringify(clients));
+      if (isUnlocked && activeTab === 'clients' && !window.location.search) renderDashboard();
     }
   });
 
@@ -428,7 +401,8 @@ function syncFromSupabase() {
         status: d.status || "Aguardando aprovação",
         created: d.created_at
       }));
-      safeSet(localStorage, "wa_orders", JSON.stringify(orders));
+      localStorage.setItem("wa_orders", JSON.stringify(orders));
+      if (isUnlocked && activeTab === 'orders' && !window.location.search) renderDashboard();
     }
   });
 
@@ -447,8 +421,8 @@ function syncFromSupabase() {
         motivo_recusa: v.motivo_recusa || "",
         status: v.status || "Agendada"
       }));
-      safeSet(localStorage, "wa_visits", JSON.stringify(visits));
-      if (activeTab === 'visits') renderDashboard();
+      localStorage.setItem("wa_visits", JSON.stringify(visits));
+      if (isUnlocked && activeTab === 'visits' && !window.location.search) renderDashboard();
     }
   });
 }
@@ -458,7 +432,7 @@ function unlock(e) {
   const input = document.getElementById("pinInput").value.trim();
   if (input === adminPin) {
     isUnlocked = true;
-    safeSet(sessionStorage, "wa_unlocked", "true");
+    sessionStorage.setItem("wa_unlocked", "true");
     renderDashboard();
   } else {
     alert("Senha incorreta! A senha padrão é 1234.");
@@ -473,19 +447,17 @@ function lock() {
 
 function setTab(tab) {
   activeTab = tab;
-  safeSet(localStorage, "wa_active_tab", tab);
+  localStorage.setItem("wa_active_tab", tab);
   renderDashboard();
 }
 
 function renderLockScreen() {
-  const brandDisplay = companyLogoUrl 
-    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo da empresa">' 
-    : '<div class="brand-logo-placeholder" aria-label="Espaço reservado para a logo"></div>';
+  const brandDisplay = '<img src="topo.png" alt="WA Resolve" style="height: 48px; width: auto; max-width: 260px; object-fit: contain;">';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
       <div class="brand">
-        ` + brandDisplay + `
+        ${brandDisplay}
       </div>
     </header>
     <div class="lock-screen">
@@ -512,27 +484,25 @@ function renderDashboard() {
     ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
     : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>';
 
-  const brandDisplay = companyLogoUrl 
-    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo da empresa">' 
-    : '<div class="brand-logo-placeholder" aria-label="Espaço reservado para a logo"></div>';
+  const brandDisplay = '<img src="topo.png" alt="WA Resolve" style="height: 48px; width: auto; max-width: 260px; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
 
   const header = `
     <header class="top">
       <div class="brand">
-        ` + brandDisplay + `
+        ${brandDisplay}
       </div>
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        ` + companyBadge + `
-        ` + sbStatus + `
+        ${companyBadge}
+        ${sbStatus}
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">🎨 Logo / Config</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
       </div>
     </header>
     <div class="nav-tabs">
-      <button class="nav-tab ` + (activeTab==='orders'?'active':'') + `" onclick="setTab('orders')">📋 Ordens de Serviço</button>
-      <button class="nav-tab ` + (activeTab==='clients'?'active':'') + `" onclick="setTab('clients')">👥 Meus Clientes</button>
-      <button class="nav-tab ` + (activeTab==='visits'?'active':'') + `" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
+      <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordens de Serviço</button>
+      <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
+      <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
     </div>
   `;
 
@@ -699,10 +669,10 @@ function renderClients() {
             <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome).replace(/'/g, '%27')}', '${encodeURIComponent(c.telefone||'').replace(/'/g, '%27')}', '${encodeURIComponent(c.endereco||'').replace(/'/g, '%27')}')">📅 Agendar</button>
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome).replace(/'/g, '%27')}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
-            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome).replace(/'/g, '%27')}')">🗑️ Excluir</button>
+            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome)}')">🗑️ Excluir</button>
           </div>
         </div>
       `;
@@ -744,7 +714,7 @@ function renderVisits() {
   const filteredVisits = visits.filter(v => {
     if (!visitSearchQuery) return true;
     const q = visitSearchQuery.toLowerCase();
-    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) ||
+    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) || 
            (v.endereco && v.endereco.toLowerCase().includes(q)) ||
            (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
   });
@@ -774,10 +744,10 @@ function renderVisits() {
           ${v.observacoes ? `<p style="font-size:12px;color:#64748b;margin-top:8px;"><em>Observações: ${v.observacoes}</em></p>` : ''}
           ${v.motivo_recusa ? `<p style="font-size:12px;color:var(--red);margin-top:8px;font-weight:700;">⚠ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
           <div class="visit-actions">
-            <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">◉ &nbsp;Enviar Coleta/Confirmação no WhatsApp</button>
-            <button class="secondary" onclick="openMaps('${encodeURIComponent(v.endereco || '')}')">▣ &nbsp;Rota no Maps</button>
-            <button class="secondary" onclick="changeVisitStatus('${v.id}')">▤ &nbsp;Status</button>
-            <button class="danger-btn" onclick="deleteVisit('${v.id}')">▧ &nbsp;Excluir</button>
+            <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
+            <button class="secondary" onclick="openMaps('${encodeURIComponent(v.endereco || '')}')">🗺️ Rota no Maps</button>
+            <button class="secondary" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
+            <button class="danger-btn" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
           </div>
         </div>
       `;
@@ -847,7 +817,7 @@ function renderVisits() {
 
 function filterVisits(q) {
   visitSearchQuery = q;
-  safeSet(localStorage, "wa_visit_search", q);
+  localStorage.setItem("wa_visit_search", q);
   renderDashboard();
 }
 
@@ -870,6 +840,46 @@ function autoFillOrderClient(valorDigitado) {
   }
 }
 
+function directVisit(nome, tel, end) {
+  setTab("visits");
+  setTimeout(() => {
+    const vNome = document.getElementById("vNome");
+    const vTel = document.getElementById("vTelefone");
+    const vEnd = document.getElementById("vEndereco");
+    const vApa = document.getElementById("vAparelho");
+    if (vNome) vNome.value = decodeURIComponent(nome);
+    if (vTel) vTel.value = decodeURIComponent(tel);
+    if (vEnd) vEnd.value = decodeURIComponent(end);
+    if (vApa) vApa.focus();
+  }, 50);
+}
+
+function openWaDirect(phone, msg) {
+  const clean = (phone || "").replace(/\D/g, "");
+  if (!clean) return alert("Telefone não informado.");
+  const full = clean.startsWith("55") ? clean : "55" + clean;
+  window.open(`https://wa.me/${full}?text=${msg}`, "_blank");
+}
+
+function changeVisitStatus(id) {
+  const v = visits.find(item => String(item.id) === String(id));
+  if (!v) return;
+  const novo = prompt("Novo status da visita:\n1 - Agendada\n2 - Confirmada\n3 - Realizada\n4 - Reagendar / Não autorizado\n5 - Cancelada", v.status);
+  if (!novo) return;
+  if (novo === "1") v.status = "Agendada";
+  else if (novo === "2") v.status = "Confirmada";
+  else if (novo === "3") v.status = "Realizada";
+  else if (novo === "4") v.status = "Reagendar / Não autorizado";
+  else if (novo === "5") v.status = "Cancelada";
+  else v.status = novo;
+
+  localStorage.setItem("wa_visits", JSON.stringify(visits));
+  if (supabaseClient && v.dbId) {
+    supabaseClient.from("visitas").update({ status: v.status }).eq("id", v.dbId);
+  }
+  renderDashboard();
+}
+
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
   const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) {
@@ -890,8 +900,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
-${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}
-` : ""}
+${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
 👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
 ${urlOs}`;
 
@@ -1213,378 +1222,4 @@ async function saveOrder(e) {
 
   if (supabaseClient) {
     try {
-      let { data: existingClient } = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
-      if (existingClient && existingClient.length > 0) {
-        cId = existingClient[0].id;
-      } else {
-        let resClient = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select();
-        if (resClient.data && resClient.data.length > 0) {
-          cId = resClient.data[0].id;
-        }
-      }
-
-      let osRes = await supabaseClient.from("ordens_servico").insert([{
-        cliente_id: cId,
-        titulo_servico: appliance,
-        marca: brand,
-        defeito: problem,
-        diagnostico: diagnosis,
-        orcamento: price,
-        taxa_recusa: refusalFee,
-        foto_url: photoUrl,
-        status: status
-      }]).select();
-
-      if (osRes.data && osRes.data[0]) {
-        const createdId = "WR-" + osRes.data[0].id;
-        orders.push({
-          id: createdId,
-          dbId: osRes.data[0].id,
-          name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status,
-          created: new Date().toISOString()
-        });
-        safeSet(localStorage, "wa_orders", JSON.stringify(orders));
-        alert("Ordem " + createdId + " salva com sucesso na nuvem!");
-        renderDashboard();
-        return;
-      }
-    } catch(err) {
-      console.warn("Erro ao salvar OS na nuvem:", err);
-    }
-  }
-
-  const tempId = "WR-" + Math.floor(1000 + Math.random() * 9000);
-  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, created: new Date().toISOString() });
-  safeSet(localStorage, "wa_orders", JSON.stringify(orders));
-  alert("Ordem " + tempId + " cadastrada com sucesso!");
-  renderDashboard();
-}
-
-async function saveClient(e) {
-  e.preventDefault();
-  const nome = document.getElementById("cNome").value.trim();
-  const telefone = document.getElementById("cTelefone").value.trim();
-  const endereco = document.getElementById("cEndereco") ? document.getElementById("cEndereco").value.trim() : "";
-
-  const tempClient = { id: Date.now(), nome, telefone, endereco };
-  clients.push(tempClient);
-  safeSet(localStorage, "wa_clients", JSON.stringify(clients));
-  renderDashboard();
-
-  if (supabaseClient) {
-    try {
-      let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone, endereco: endereco }]).select();
-      if (error) {
-        let res2 = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
-        if (res2.data && res2.data[0]) {
-          tempClient.id = res2.data[0].id;
-        }
-      } else if (data && data[0]) {
-        tempClient.id = data[0].id;
-      }
-      safeSet(localStorage, "wa_clients", JSON.stringify(clients));
-    } catch (err) {
-      console.warn("Exceção Supabase:", err);
-    }
-  }
-  alert("✅ Cliente cadastrado com sucesso!");
-  syncFromSupabase();
-}
-
-async function saveVisit(e) {
-  e.preventDefault();
-  const cliente_nome = document.getElementById("vNome").value.trim();
-  const telefone = document.getElementById("vTelefone").value.trim();
-  const data_visita = document.getElementById("vData").value;
-  const horario_visita = document.getElementById("vHorario").value;
-  const aparelho_motivo = document.getElementById("vAparelho").value.trim();
-  const endereco = document.getElementById("vEndereco").value.trim();
-  const observacoes = document.getElementById("vObs").value.trim();
-
-  let vDbId = null;
-  if (supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient.from("visitas").insert([{
-        cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
-      }]).select();
-      if (!error && data && data.length > 0) {
-        vDbId = data[0].id;
-      }
-    } catch(err) {
-      console.warn("Erro ao salvar visita:", err);
-    }
-  }
-
-  const newVisit = {
-    id: "VIS-" + (vDbId || Math.floor(1000 + Math.random() * 9000)),
-    dbId: vDbId,
-    cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
-  };
-  visits.push(newVisit);
-  safeSet(localStorage, "wa_visits", JSON.stringify(visits));
-  alert("Visita agendada com sucesso!");
-  renderDashboard();
-}
-
-function openKeyModal() {
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurações da WA Resolve</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Configure separadamente a logo do painel e a logo que aparece nas páginas enviadas aos clientes.</p>
-      
-      <div class="field">
-        <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
-        <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
-        <small style="color:var(--muted); font-size:11px;">Área reservada no topo: 384x72px. Use uma imagem horizontal com fundo transparente.</small>
-      </div>
-
-      <div class="field">
-        <label>🧾 Logo das páginas do cliente (orçamento e visita)</label>
-        <input id="modalClientLogoInput" placeholder="https://seusite.com/logo-cliente.png" value="${clientLogoUrl}">
-        <small style="color:var(--muted); font-size:11px;">Independente da logo do topo do sistema. Use um link público de imagem PNG/JPG/SVG. Ela será incluída nos links enviados por WhatsApp.</small>
-      </div>
-
-      <div class="field">
-        <label>🌐 Link do GitHub Pages</label>
-        <input id="modalPublicUrl" placeholder="https://seusite.github.io/WA_Resolver/" value="${safeGet(localStorage, "wa_public_url") || ""}">
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
-        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
-        <button class="primary" onclick="saveSettingsModal(this)">Salvar Alterações</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function saveSettingsModal(btn) {
-  const logo = document.getElementById("modalLogoInput").value.trim();
-  const clientLogo = document.getElementById("modalClientLogoInput").value.trim();
-  const urlPub = document.getElementById("modalPublicUrl").value.trim();
-  companyLogoUrl = logo;
-  clientLogoUrl = clientLogo;
-  safeSet(localStorage, "wa_company_logo", logo);
-  safeSet(localStorage, "wa_client_logo", clientLogo);
-  safeSet(localStorage, "wa_public_url", urlPub);
-  btn.closest(".modal").remove();
-  alert("Configurações salvas com sucesso!");
-  renderDashboard();
-}
-
-// Escapa texto vindo do cadastro antes de inserir em HTML.
-function escapeHtml(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
-// Botão Agendar: abre a aba de visitas e preenche os dados do cliente.
-function directVisit(nomeCodificado, telefoneCodificado, enderecoCodificado) {
-  let nome = "", telefone = "", endereco = "";
-  try {
-    nome = decodeURIComponent(nomeCodificado || "");
-    telefone = decodeURIComponent(telefoneCodificado || "");
-    endereco = decodeURIComponent(enderecoCodificado || "");
-  } catch (err) {
-    nome = nomeCodificado || "";
-    telefone = telefoneCodificado || "";
-    endereco = enderecoCodificado || "";
-  }
-  setTab("visits");
-  const nomeInput = document.getElementById("vNome");
-  const telefoneInput = document.getElementById("vTelefone");
-  const enderecoInput = document.getElementById("vEndereco");
-  if (nomeInput) nomeInput.value = nome;
-  if (telefoneInput) telefoneInput.value = telefone;
-  if (enderecoInput) enderecoInput.value = endereco;
-  const aparelhoInput = document.getElementById("vAparelho");
-  if (aparelhoInput) aparelhoInput.focus();
-}
-
-// Botão WhatsApp: normaliza o número e abre uma conversa com mensagem pré-preenchida.
-function openWaDirect(telefone, mensagem) {
-  let numero = String(telefone || "").replace(/\D/g, "");
-  if (!numero) {
-    alert("Este cliente não possui telefone/WhatsApp cadastrado.");
-    return;
-  }
-  if (!numero.startsWith("55")) numero = "55" + numero;
-  const texto = String(mensagem || "Olá! Falamos da assistência técnica WA Resolve.");
-  const url = "https://wa.me/" + numero + "?text=" + encodeURIComponent(texto);
-  window.open(url, "_blank");
-}
-
-function editClient(id) {
-  const c = clients.find(item => String(item.id) === String(id));
-  if (!c) return;
-
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:12px;">✏️ Editar Cliente</h3>
-      <form onsubmit="updateClient(event, '${c.id}')">
-        <div class="field">
-          <label>Nome Completo *</label>
-          <input id="editCNome" required value="${escapeHtml(c.nome)}">
-        </div>
-        <div class="field">
-          <label>Telefone / WhatsApp *</label>
-          <input id="editCTelefone" required value="${escapeHtml(c.telefone || '')}" inputmode="tel">
-        </div>
-        <div class="field">
-          <label>Endereço Completo</label>
-          <textarea id="editCEndereco" rows="3">${escapeHtml(c.endereco || '')}</textarea>
-        </div>
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
-          <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
-          <button type="submit" class="primary">Salvar Alterações</button>
-        </div>
-      </form>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-async function updateClient(e, id) {
-  e.preventDefault();
-  const nome = document.getElementById("editCNome").value.trim();
-  const telefone = document.getElementById("editCTelefone").value.trim();
-  const endereco = document.getElementById("editCEndereco").value.trim();
-
-  const c = clients.find(item => String(item.id) === String(id));
-  if (c) {
-    c.nome = nome;
-    c.telefone = telefone;
-    c.endereco = endereco;
-    safeSet(localStorage, "wa_clients", JSON.stringify(clients));
-
-    if (supabaseClient) {
-      try {
-        const { error } = await supabaseClient.from("clientes").update({ nome, telefone, endereco }).eq("id", id);
-        if (error) {
-          // Compatibilidade com tabelas antigas que ainda não possuem a coluna endereco.
-          await supabaseClient.from("clientes").update({ nome, telefone }).eq("id", id);
-        }
-      } catch(err) {
-        console.warn("Erro ao atualizar cliente:", err);
-      }
-    }
-  }
-
-  document.querySelector(".modal").remove();
-  alert("Cliente atualizado com sucesso!");
-  renderDashboard();
-}
-
-async function deleteClient(id, encodedName) {
-  let nomeCliente = encodedName || "este cliente";
-  try { nomeCliente = decodeURIComponent(encodedName || ""); } catch (err) {}
-  if (!confirm(`⚠️ Deseja realmente excluir o cliente "${nomeCliente}"?`)) return;
-
-  clients = clients.filter(item => String(item.id) !== String(id));
-  safeSet(localStorage, "wa_clients", JSON.stringify(clients));
-
-  if (supabaseClient) {
-    try {
-      await supabaseClient.from("clientes").delete().eq("id", id);
-    } catch(err) {
-      console.warn("Erro ao excluir cliente:", err);
-    }
-  }
-
-  alert("Cliente excluído com sucesso!");
-  renderDashboard();
-}
-
-async function deleteOrder(id) {
-  if (!confirm(`⚠️ Deseja realmente excluir a ordem ${id}?`)) return;
-
-  const o = orders.find(item => item.id === id);
-  orders = orders.filter(item => item.id !== id);
-  safeSet(localStorage, "wa_orders", JSON.stringify(orders));
-
-  if (supabaseClient && o && o.dbId) {
-    try {
-      await supabaseClient.from("ordens_servico").delete().eq("id", o.dbId);
-    } catch(err) {
-      console.warn("Erro ao excluir OS no Supabase:", err);
-    }
-  }
-
-  alert("Ordem excluída com sucesso!");
-  renderDashboard();
-}
-
-openMaps = function(endereco) {
-  window.open("https://www.google.com/maps/search/?api=1&query=" + endereco, "_blank");
-};
-
-function copyLink(id) {
-  const publicBaseUrl = safeGet(localStorage, "wa_public_url") || "";
-  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + encodeURIComponent(id) + (clientLogoUrl ? "&logo=" + encodeURIComponent(clientLogoUrl) : "");
-  navigator.clipboard.writeText(url).then(() => {
-    alert("Link copiado para a área de transferência!\n\n" + url);
-  }).catch(() => {
-    prompt("Copie o link abaixo:", url);
-  });
-}
-
-function changeOrderStatus(id) {
-  const o = orders.find(item => item.id === id);
-  if (!o) return;
-  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Aprovado - Conserto iniciado\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
-  if (!novo) return;
-  if (novo === "1") o.status = "Aguardando aprovação";
-  else if (novo === "2") o.status = "Aprovado - Conserto iniciado";
-  else if (novo === "3") o.status = "Pronto para retirada";
-  else if (novo === "4") o.status = "Concluído";
-  else if (novo === "5") o.status = "Não aprovado";
-  else o.status = novo;
-  
-  safeSet(localStorage, "wa_orders", JSON.stringify(orders));
-  if (supabaseClient && o.dbId) {
-    supabaseClient.from("ordens_servico").update({ status: o.status }).eq("id", o.dbId);
-  }
-  renderDashboard();
-}
-
-function changePin() {
-  const novo = prompt("Digite a nova Senha/PIN de administrador (mínimo 4 caracteres)", adminPin);
-  if (novo && novo.trim().length >= 4) {
-    adminPin = novo.trim();
-    safeSet(localStorage, "wa_admin_pin", adminPin);
-    alert("Senha alterada com sucesso!");
-  }
-}
-
-function editCompanyWhatsApp() {
-  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com DDD, somente números):", companyWhatsApp || "849...");
-  if (novo !== null) {
-    companyWhatsApp = novo.replace(/\D/g, "");
-    safeSet(localStorage, "wa_company_phone", companyWhatsApp);
-    alert("WhatsApp da assistência salvo com sucesso!");
-    renderDashboard();
-  }
-}
-
-function changeOrderPhoto(id) {
-  const o = orders.find(item => item.id === id);
-  if (!o) return;
-  const novoLink = prompt("Cole o link da foto do equipamento / defeito:", o.photoUrl || "");
-  if (novoLink !== null) {
-    o.photoUrl = novoLink.trim();
-    safeSet(localStorage, "wa_orders", JSON.stringify(orders));
-    if (supabaseClient && o.dbId) {
-      supabaseClient.from("ordens_servico").update({ foto_url: o.photoUrl }).eq("id", o.dbId);
-    }
-    alert("Foto atualizada com sucesso!");
-    renderDashboard();
-  }
-}
-</script>
-</body>
-</html>
+      let { data: existingClient } = await supabaseClient.
