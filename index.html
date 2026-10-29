@@ -58,8 +58,9 @@ window.updateClient = updateClient;
       flex-wrap: wrap;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .brand-logo-img { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
+    .brand { display: flex; align-items: center; gap: 0; flex: 0 0 384px; width: 384px; min-width: 0; }
+    .brand-logo-img { display: block; width: 384px; height: 72px; max-width: 384px; object-fit: contain; object-position: left center; }
+    .brand-logo-placeholder { display: block; width: 384px; height: 72px; border: 1px dashed rgba(255,255,255,.24); border-radius: 7px; box-sizing: border-box; }
     .brand-info h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
     .brand-info p { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
     
@@ -216,10 +217,10 @@ window.updateClient = updateClient;
       border-bottom: 1px solid rgba(255,255,255,.12);
       border-radius: 0;
     }
-    .brand-logo-img { height: 46px; max-width: 112px; }
-    .brand-badge { background: transparent; color: #fff; border: 0; font-size: 22px; padding: 4px 8px; }
-    .brand-info h1 { font-size: 17px; }
-    .brand-info p { color: #c4d2e5; }
+    .brand-logo-img { width: 384px; height: 72px; max-width: 384px; }
+    .brand-logo-placeholder { width: 384px; height: 72px; }
+    .brand-badge { display: none; }
+    @media (max-width: 760px) { .top { padding: 8px 12px; } .brand { flex-basis: min(384px, 100%); width: min(384px, 100%); } .brand-logo-img, .brand-logo-placeholder { width: min(384px, 100%); height: 72px; } .top > div:last-child { width: 100%; } }
     .top > div:last-child .secondary {
       background: rgba(255,255,255,.08);
       color: #fff;
@@ -472,17 +473,13 @@ function setTab(tab) {
 
 function renderLockScreen() {
   const brandDisplay = companyLogoUrl 
-    ? '<img src="' + companyLogoUrl + '" alt="Logo" style="max-height:48px; object-fit:contain;">' 
-    : '<div class="brand-badge">WA RESOLVE</div>';
+    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo da empresa">' 
+    : '<div class="brand-logo-placeholder" aria-label="Espaço reservado para a logo"></div>';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
       <div class="brand">
         ` + brandDisplay + `
-        <div class="brand-info">
-          <h1>Central de Serviços</h1>
-          <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
-        </div>
       </div>
     </header>
     <div class="lock-screen">
@@ -510,17 +507,13 @@ function renderDashboard() {
     : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>';
 
   const brandDisplay = companyLogoUrl 
-    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo">' 
-    : '<div class="brand-badge">WA</div>';
+    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo da empresa">' 
+    : '<div class="brand-logo-placeholder" aria-label="Espaço reservado para a logo"></div>';
 
   const header = `
     <header class="top">
       <div class="brand">
         ` + brandDisplay + `
-        <div class="brand-info">
-          <h1>Central de Serviços</h1>
-          <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
-        </div>
       </div>
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         ` + companyBadge + `
@@ -1334,7 +1327,7 @@ function openKeyModal() {
       <div class="field">
         <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
         <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
-        <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
+        <small style="color:var(--muted); font-size:11px;">Área reservada no topo: 384x72px. Use uma imagem horizontal com fundo transparente.</small>
       </div>
 
       <div class="field">
