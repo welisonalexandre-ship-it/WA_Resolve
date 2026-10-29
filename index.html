@@ -891,7 +891,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   
   // Link limpo e curto
@@ -922,7 +922,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -1344,7 +1344,7 @@ function saveSettingsModal(btn) {
   companyLogoUrl = logo;
   localStorage.setItem("wa_company_logo", logo);
   localStorage.setItem("wa_public_url", urlPub);
-  btn.closest(".modal").remove();
+  btn.closest('.modal').remove();
   alert("Configurações salvas com sucesso!");
   renderDashboard();
 }
