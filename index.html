@@ -374,7 +374,7 @@ function renderDashboard() {
     : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
 
   const companyBadge = companyWhatsApp 
-    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>` 
+    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>` 
     : `<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>`;
 
   const brandDisplay = companyLogoUrl 
@@ -509,7 +509,7 @@ function renderOrders() {
                 </div>
                 <div style="text-align:right;">
                   <strong style="color:var(--navy);">R$ ${Number(o.price||0).toFixed(2)}</strong>
-                  <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
+                  <div><span class="tag ${String(o.status).replace(/\\s+/g, '_')}">${o.status}</span></div>
                 </div>
               </div>
               ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
@@ -712,16 +712,12 @@ function autoFillOrderClient(valorDigitado) {
   }
 }
 
-// Verificador inteligente de link público para mobile
 function getActivePublicBaseUrl() {
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   if (publicBaseUrl && publicBaseUrl.startsWith("http")) {
     return publicBaseUrl.replace(/\/$/, "");
   }
   const currentOrigin = window.location.origin;
-  if (currentOrigin.includes("localhost") || currentOrigin.includes("127.0.0.1") || currentOrigin.startsWith("file:")) {
-    console.warn("⚠️ ALERTA WA RESOLVE: O link do GitHub Pages não está configurado em 'Logo / Config'. O cliente no celular não conseguirá abrir links do localhost/file.");
-  }
   return currentOrigin + window.location.pathname.replace(/\/$/, "");
 }
 
@@ -734,11 +730,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   if (!publicBaseUrl || publicBaseUrl.includes("localhost")) {
-    const querConfig = confirm("⚠️ ATENÇÃO: Seu Link do GitHub Pages não está configurado!
-
-Se você enviar este link agora, o cliente no celular NÃO conseguirá abrir (pois está em localhost/computador).
-
-Deseja configurar o link do GitHub Pages agora?");
+    const querConfig = confirm("⚠️ ATENÇÃO: O link do GitHub Pages não está configurado em 'Logo / Config'!\n\nSe enviar agora, o cliente no telemóvel/celular não conseguirá abrir o link.\n\nDeseja abrir as configurações para colocar o link público?");
     if (querConfig) {
       openKeyModal();
       return;
@@ -752,13 +744,7 @@ Deseja configurar o link do GitHub Pages agora?");
   const activeBase = getActivePublicBaseUrl();
   const urlOs = activeBase + "?cliente=" + orderId;
 
-  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
-
-💰 *Valor:* R$ ${Number(price).toFixed(2)}${detalhesTxt ? `
-🛠️ *Serviço:* ${detalhesTxt}` : ""}
-
-👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:* 
-${urlOs}`;
+  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:\n\n💰 *Valor:* R$ ${Number(price).toFixed(2)}${detalhesTxt ? `\n🛠️ *Serviço:* ${detalhesTxt}` : ""}\n\n👉 *Clique no link abaixo para ver os detalhes e aprovar online:*\n${urlOs}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
@@ -773,9 +759,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   if (!publicBaseUrl || publicBaseUrl.includes("localhost")) {
-    const querConfig = confirm("⚠️ ATENÇÃO: Seu Link do GitHub Pages não está configurado!
-
-Deseja configurar o link do GitHub Pages agora antes de enviar?");
+    const querConfig = confirm("⚠️ ATENÇÃO: O link do GitHub Pages não está configurado em 'Logo / Config'!\n\nDeseja configurar agora?");
     if (querConfig) {
       openKeyModal();
       return;
@@ -790,17 +774,14 @@ Deseja configurar o link do GitHub Pages agora antes de enviar?");
   const activeBase = getActivePublicBaseUrl();
   const urlVisita = activeBase + "?visita=" + visitId;
 
-  const texto = `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
-
-👉 *Clique para responder SIM ou NÃO online:* 
-${urlVisita}`;
+  const texto = `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.\n\n👉 *Clique para responder SIM ou NÃO online:*\n${urlVisita}`;
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
   window.open(url, "_blank");
 }
 
 function renderClientView(id) {
-  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>`;
+  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>A carregar orçamento...</h2></div>`;
 
   let o = orders.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
@@ -842,12 +823,12 @@ function renderClientView(id) {
 function displayClientOrderPage(o) {
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
   const contactCompanyBtn = companyPhoneClean 
-    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>` 
+    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou a visualizar a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>` 
     : '';
 
   const photoHtml = o.photoUrl ? `
     <div style="margin:16px 0; text-align:center; background:#f8fafc; border-radius:12px; padding:12px; border:1px solid var(--line);">
-      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">📷 Foto do Equipamento / Defeito do Cliente</p>
+      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">📷 Foto do Equipamento / Defeito</p>
       <img src="${o.photoUrl}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
     </div>` : '';
 
@@ -860,7 +841,7 @@ function displayClientOrderPage(o) {
   const actionsHtml = isApproved ? `
     <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
       <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Orçamento Aprovado - Conserto Iniciado!</h3>
-      <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipe técnica.</p>
+      <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipa técnica.</p>
     </div>
     ${contactCompanyBtn}
   ` : `
@@ -891,7 +872,7 @@ function displayClientOrderPage(o) {
       <div style="border-top:1px solid var(--line); padding-top:16px;">
         <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${o.name}</p>
         <p style="margin-bottom:8px;"><strong>Defeito Relatado:</strong> ${o.problem || 'Não especificado'}</p>
-        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico (O que precisa):</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
+        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico:</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
         <p style="margin-bottom:8px; font-size:18px;"><strong>Valor do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">R$ ${Number(o.price||0).toFixed(2)}</span></p>
         ${o.refusalFee > 0 ? `<p style="font-size:12px; color:var(--red);">* Taxa de análise/deslocamento caso o orçamento não seja aprovado: R$ ${Number(o.refusalFee).toFixed(2)}</p>` : ''}
       </div>
@@ -918,7 +899,7 @@ async function clientActionOrder(id, newStatus, dbId) {
 }
 
 function renderClientVisitView(id) {
-  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>Carregando visita...</h2></div>`;
+  document.getElementById("app").innerHTML = `<div style="text-align:center; padding:60px;"><h2>A carregar visita...</h2></div>`;
 
   let v = visits.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
@@ -966,12 +947,12 @@ function displayClientVisitPage(v) {
   const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
   const visitActionsHtml = isConfirmed ? `
     <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
-      <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Visita / Coleta Confirmada!</h3>
-      <p style="color:#047857; font-size:14px;">Agradecemos a confirmação. Nossa equipe comparecerá no horário agendado.</p>
+      <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Visita / Recolha Confirmada!</h3>
+      <p style="color:#047857; font-size:14px;">Agradecemos a confirmação. A nossa equipa comparecerá no horário agendado.</p>
     </div>
   ` : `
     <div style="display:grid; gap:10px;">
-      <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}', ${v.dbId})">✅ SIM, pode coletar no horário previsto</button>
+      <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}', ${v.dbId})">✅ SIM, pode recolher no horário previsto</button>
       <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="recusarColetaCliente('${v.id}', ${v.dbId})">❌ NÃO, não poderei receber (informar motivo)</button>
     </div>
   `;
@@ -980,34 +961,34 @@ function displayClientVisitPage(v) {
     <header class="top">
       <div class="brand">
         <div class="brand-badge">WA RESOLVE</div>
-        <span>Confirmação de Coleta / Visita Técnica</span>
+        <span>Confirmação de Recolha / Visita Técnica</span>
       </div>
     </header>
     <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:14px; padding:22px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
       ${logoHeader}
       <div style="text-align:center; margin-bottom:18px;">
         <span class="tag ${v.status}" style="font-size:13px; padding:6px 14px;">Status: ${v.status}</span>
-        <h2 style="color:var(--navy); margin-top:10px;">Coleta de Equipamento</h2>
+        <h2 style="color:var(--navy); margin-top:10px;">Recolha de Equipamento</h2>
         <p style="color:var(--muted);">WA Resolve Assistência Técnica</p>
       </div>
 
       <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px;">
         <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${v.cliente_nome}</p>
-        <p style="margin-bottom:8px;"><strong>Equipamento a ser coletado:</strong> <span style="color:var(--blue); font-weight:700;">${v.aparelho_motivo}</span></p>
+        <p style="margin-bottom:8px;"><strong>Equipamento a ser recolhido:</strong> <span style="color:var(--blue); font-weight:700;">${v.aparelho_motivo}</span></p>
         <p style="margin-bottom:8px;"><strong>Data Prevista:</strong> 📅 ${dataFormatada}</p>
         <p style="margin-bottom:8px;"><strong>Horário Previsto:</strong> ⏰ ${v.horario_visita}</p>
         <p style="margin-bottom:0;"><strong>Endereço:</strong> 📍 ${v.endereco}</p>
       </div>
 
       <div style="text-align:center; margin-bottom:16px;">
-        <h3 style="font-size:16px; color:var(--navy); margin-bottom:8px;">Podemos comparecer para coletar o seu equipamento?</h3>
+        <h3 style="font-size:16px; color:var(--navy); margin-bottom:8px;">Podemos comparecer para recolher o seu equipamento?</h3>
       </div>
 
       ${visitActionsHtml}
 
       ${companyPhoneClean ? `
         <div style="margin-top:20px; text-align:center;">
-          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>
+          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou a ver o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>
         </div>
       ` : ''}
     </div>
@@ -1024,7 +1005,7 @@ function confirmarColetaCliente(id, dbId) {
   if (supabaseClient && realDbId) {
     supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
   }
-  alert("✅ Muito obrigado! Sua visita foi confirmada.");
+  alert("✅ Muito obrigado! A sua visita foi confirmada.");
   renderClientVisitView(id);
 }
 
@@ -1041,13 +1022,13 @@ function recusarColetaCliente(id, dbId) {
     if (supabaseClient && realDbId) {
       supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: "Motivo: " + (motivo || "Não informado") }).eq("id", realDbId);
     }
-    alert("Agradecemos o aviso! Entraremos em contato para combinar uma nova data.");
+    alert("Agradecemos o aviso! Entraremos em contacto para combinar uma nova data.");
     renderClientVisitView(id);
   }
 }
 
 async function deleteVisit(id) {
-  if (!confirm(`⚠️ Deseja realmente excluir este agendamento de visita?`)) return;
+  if (!confirm("⚠️ Deseja realmente eliminar este agendamento de visita?")) return;
 
   const v = visits.find(item => String(item.id) === String(id));
   visits = visits.filter(item => String(item.id) !== String(id));
@@ -1057,11 +1038,11 @@ async function deleteVisit(id) {
     try {
       await supabaseClient.from("visitas").delete().eq("id", v.dbId);
     } catch(err) {
-      console.warn("Erro ao excluir visita no Supabase:", err);
+      console.warn("Erro ao eliminar visita no Supabase:", err);
     }
   }
 
-  alert("Visita excluída com sucesso!");
+  alert("Visita eliminada com sucesso!");
   renderDashboard();
 }
 
@@ -1113,12 +1094,12 @@ async function saveOrder(e) {
           created: new Date().toISOString()
         });
         localStorage.setItem("wa_orders", JSON.stringify(orders));
-        alert("Ordem " + createdId + " salva com sucesso na nuvem!");
+        alert("Ordem " + createdId + " guardada com sucesso na nuvem!");
         renderDashboard();
         return;
       }
     } catch(err) {
-      console.warn("Erro ao salvar OS na nuvem:", err);
+      console.warn("Erro ao guardar OS na nuvem:", err);
     }
   }
 
@@ -1156,7 +1137,7 @@ async function saveClient(e) {
       console.warn("Exceção Supabase:", err);
     }
   }
-  alert("✅ Cliente cadastrado com sucesso!");
+  alert("✅ Cliente registado com sucesso!");
   syncFromSupabase();
 }
 
@@ -1180,7 +1161,7 @@ async function saveVisit(e) {
         vDbId = data[0].id;
       }
     } catch(err) {
-      console.warn("Erro ao salvar visita:", err);
+      console.warn("Erro ao guardar visita:", err);
     }
   }
 
@@ -1201,10 +1182,10 @@ function openKeyModal() {
   modal.innerHTML = `
     <div class="modal-box">
       <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurações da WA Resolve</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Personalize a sua Logo e os links públicos.</p>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Personalize o seu logótipo e os links públicos.</p>
       
       <div class="field">
-        <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
+        <label>🖼️ Link do Logótipo (Imagem PNG/JPEG)</label>
         <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
         <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
       </div>
@@ -1216,7 +1197,7 @@ function openKeyModal() {
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
         <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
-        <button class="primary" onclick="saveSettingsModal(this)">Salvar Alterações</button>
+        <button class="primary" onclick="saveSettingsModal(this)">Guardar Alterações</button>
       </div>
     </div>
   `;
@@ -1230,7 +1211,7 @@ function saveSettingsModal(btn) {
   localStorage.setItem("wa_company_logo", logo);
   localStorage.setItem("wa_public_url", urlPub);
   btn.closest(".modal").remove();
-  alert("Configurações salvas com sucesso!");
+  alert("Configurações guardadas com sucesso!");
   renderDashboard();
 }
 
@@ -1258,7 +1239,7 @@ function editClient(id) {
         </div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
           <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
-          <button type="submit" class="primary">Salvar Alterações</button>
+          <button type="submit" class="primary">Guardar Alterações</button>
         </div>
       </form>
     </div>
@@ -1295,7 +1276,7 @@ async function updateClient(e, id) {
 
 async function deleteClient(id, encodedName) {
   const nomeCliente = decodeURIComponent(encodedName);
-  if (!confirm(`⚠️ Deseja realmente excluir o cliente "${nomeCliente}"?`)) return;
+  if (!confirm(`⚠️ Deseja realmente eliminar o cliente "${nomeCliente}"?`)) return;
 
   clients = clients.filter(item => String(item.id) !== String(id));
   localStorage.setItem("wa_clients", JSON.stringify(clients));
@@ -1304,16 +1285,16 @@ async function deleteClient(id, encodedName) {
     try {
       await supabaseClient.from("clientes").delete().eq("id", id);
     } catch(err) {
-      console.warn("Erro ao excluir cliente:", err);
+      console.warn("Erro ao eliminar cliente:", err);
     }
   }
 
-  alert("Cliente excluído com sucesso!");
+  alert("Cliente eliminado com sucesso!");
   renderDashboard();
 }
 
 async function deleteOrder(id) {
-  if (!confirm(`⚠️ Deseja realmente excluir a ordem ${id}?`)) return;
+  if (!confirm(`⚠️ Deseja realmente eliminar a ordem ${id}?`)) return;
 
   const o = orders.find(item => item.id === id);
   orders = orders.filter(item => item.id !== id);
@@ -1323,11 +1304,11 @@ async function deleteOrder(id) {
     try {
       await supabaseClient.from("ordens_servico").delete().eq("id", o.dbId);
     } catch(err) {
-      console.warn("Erro ao excluir OS no Supabase:", err);
+      console.warn("Erro ao eliminar OS no Supabase:", err);
     }
   }
 
-  alert("Ordem excluída com sucesso!");
+  alert("Ordem eliminada com sucesso!");
   renderDashboard();
 }
 
@@ -1339,9 +1320,7 @@ function copyLink(id) {
   const activeBase = getActivePublicBaseUrl();
   let url = activeBase + "?cliente=" + id;
   navigator.clipboard.writeText(url).then(() => {
-    alert("Link copiado para a área de transferência!
-
-" + url);
+    alert("Link copiado para a área de transferência!\n\n" + url);
   }).catch(() => {
     prompt("Copie o link abaixo:", url);
   });
@@ -1350,12 +1329,7 @@ function copyLink(id) {
 function changeOrderStatus(id) {
   const o = orders.find(item => item.id === id);
   if (!o) return;
-  const novo = prompt("Novo status:
-1 - Aguardando aprovação
-2 - Aprovado - Conserto iniciado
-3 - Pronto para retirada
-4 - Concluído
-5 - Não aprovado", o.status);
+  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Aprovado - Conserto iniciado\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
   if (!novo) return;
   if (novo === "1") o.status = "Aguardando aprovação";
   else if (novo === "2") o.status = "Aprovado - Conserto iniciado";
@@ -1372,20 +1346,20 @@ function changeOrderStatus(id) {
 }
 
 function changePin() {
-  const novo = prompt("Digite a nova Senha/PIN de administrador (mínimo 4 caracteres)", adminPin);
+  const novo = prompt("Digite o novo Código/PIN de administrador (mínimo 4 caracteres)", adminPin);
   if (novo && novo.trim().length >= 4) {
     adminPin = novo.trim();
     localStorage.setItem("wa_admin_pin", adminPin);
-    alert("Senha alterada com sucesso!");
+    alert("Código alterado com sucesso!");
   }
 }
 
 function editCompanyWhatsApp() {
-  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com DDD, somente números):", companyWhatsApp || "849...");
+  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com indicativo, apenas números):", companyWhatsApp || "849...");
   if (novo !== null) {
     companyWhatsApp = novo.replace(/\D/g, "");
     localStorage.setItem("wa_company_phone", companyWhatsApp);
-    alert("WhatsApp da assistência salvo com sucesso!");
+    alert("WhatsApp da assistência guardado com sucesso!");
     renderDashboard();
   }
 }
@@ -1393,7 +1367,7 @@ function editCompanyWhatsApp() {
 function changeOrderPhoto(id) {
   const o = orders.find(item => item.id === id);
   if (!o) return;
-  const novoLink = prompt("Cole o link da foto do equipamento / defeito:", o.photoUrl || "");
+  const novoLink = prompt("Cole a ligação/URL da foto do equipamento / defeito:", o.photoUrl || "");
   if (novoLink !== null) {
     o.photoUrl = novoLink.trim();
     localStorage.setItem("wa_orders", JSON.stringify(orders));
