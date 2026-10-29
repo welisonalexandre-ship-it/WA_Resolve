@@ -347,13 +347,13 @@ function setTab(tab) {
 
 function renderLockScreen() {
   const brandDisplay = companyLogoUrl 
-    ? `<img src="${companyLogoUrl}" alt="Logo" style="max-height:48px; object-fit:contain;">` 
-    : `<div class="brand-badge">WA RESOLVE</div>`;
+    ? '<img src="' + companyLogoUrl + '" alt="Logo" style="max-height:48px; object-fit:contain;">' 
+    : '<div class="brand-badge">WA RESOLVE</div>';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
       <div class="brand">
-        ${brandDisplay}
+        ` + brandDisplay + `
         <div class="brand-info">
           <h1>Central de Serviços</h1>
           <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
@@ -381,34 +381,34 @@ function renderDashboard() {
     : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
 
   const companyBadge = companyWhatsApp 
-    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>`
-    : `<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>`;
+    ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
+    : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>';
 
   const brandDisplay = companyLogoUrl 
-    ? `<img src="${companyLogoUrl}" class="brand-logo-img" alt="Logo">` 
-    : `<div class="brand-badge">WA</div>`;
+    ? '<img src="' + companyLogoUrl + '" class="brand-logo-img" alt="Logo">' 
+    : '<div class="brand-badge">WA</div>';
 
   const header = `
     <header class="top">
       <div class="brand">
-        ${brandDisplay}
+        ` + brandDisplay + `
         <div class="brand-info">
           <h1>Central de Serviços</h1>
           <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
         </div>
       </div>
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        ${companyBadge}
-        ${sbStatus}
+        ` + companyBadge + `
+        ` + sbStatus + `
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">🎨 Logo / Config</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
       </div>
     </header>
     <div class="nav-tabs">
-      <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordens de Serviço</button>
-      <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
-      <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
+      <button class="nav-tab ` + (activeTab==='orders'?'active':'') + `" onclick="setTab('orders')">📋 Ordens de Serviço</button>
+      <button class="nav-tab ` + (activeTab==='clients'?'active':'') + `" onclick="setTab('clients')">👥 Meus Clientes</button>
+      <button class="nav-tab ` + (activeTab==='visits'?'active':'') + `" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
     </div>
   `;
 
@@ -429,6 +429,40 @@ function renderOrders() {
   const inProgress = orders.filter(o => o.status.includes("Aprovado") || o.status === "Em conserto").length;
   const refused = orders.filter(o => o.status === "Não aprovado");
   const totalRefusalFees = refused.reduce((sum, o) => sum + (Number(o.refusalFee) || 0), 0);
+
+  let ordersListHtml = "";
+  if (orders.length === 0) {
+    ordersListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>';
+  } else {
+    orders.slice().reverse().forEach(o => {
+      ordersListHtml += `
+        <div class="card-item">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
+              <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
+              <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
+              ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
+            </div>
+            <div style="text-align:right;">
+              <strong style="color:var(--navy);">R$ ${Number(o.price||0).toFixed(2)}</strong>
+              <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
+            </div>
+          </div>
+          ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
+          <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Imagem Defeito</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
+            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
 
   return `
     <div class="stats">
@@ -451,7 +485,7 @@ function renderOrders() {
               <label>Nome do Cliente *</label>
               <input id="osName" required placeholder="Digite ou selecione o cliente" list="clientListOptions" oninput="autoFillOrderClient(this.value)" onchange="autoFillOrderClient(this.value)">
               <datalist id="clientListOptions">
-                ${clients.map(c => `<option value="${c.nome}">`).join('')}
+                ${clientOptions}
               </datalist>
             </div>
             <div class="field">
@@ -505,30 +539,7 @@ function renderOrders() {
       <div class="panel">
         <h2>Ordens Cadastradas (${orders.length})</h2>
         <div>
-          ${orders.length === 0 ? '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>' : orders.slice().reverse().map(o => `
-            <div class="card-item">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                  <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
-                  <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
-                  <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
-                  ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
-                </div>
-                <div style="text-align:right;">
-                  <strong style="color:var(--navy);">R$ ${Number(o.price||0).toFixed(2)}</strong>
-                  <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
-                </div>
-              </div>
-              ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
-              <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-                <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Imagem Defeito</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
-                <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
-              </div>
-            </div>
-          `).join('')}
+          ${ordersListHtml}
         </div>
       </div>
     </div>
@@ -551,6 +562,29 @@ function handleImageUpload(event) {
 }
 
 function renderClients() {
+  let clientsListHtml = "";
+  if (clients.length === 0) {
+    clientsListHtml = '<p style="color:var(--muted); text-align:center;">Nenhum cliente cadastrado ainda.</p>';
+  } else {
+    clients.slice().reverse().forEach(c => {
+      clientsListHtml += `
+        <div class="card-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:185px;">
+            <strong style="font-size:15px; color:var(--navy);">${c.nome}</strong>
+            <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'}</p>
+            <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
+            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome)}')">🗑️ Excluir</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   return `
     <div class="layout">
       <div class="panel">
@@ -575,21 +609,7 @@ function renderClients() {
       <div class="panel">
         <h2>Meus Clientes (${clients.length})</h2>
         <div>
-          ${clients.length === 0 ? '<p style="color:var(--muted); text-align:center;">Nenhum cliente cadastrado ainda.</p>' : clients.slice().reverse().map(c => `
-            <div class="card-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-              <div style="flex:1; min-width:185px;">
-                <strong style="font-size:15px; color:var(--navy);">${c.nome}</strong>
-                <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'}</p>
-                <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
-              </div>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
-                <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
-                <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome)}')">🗑️ Excluir</button>
-              </div>
-            </div>
-          `).join('')}
+          ${clientsListHtml}
         </div>
       </div>
     </div>
@@ -604,6 +624,35 @@ function renderVisits() {
            (v.endereco && v.endereco.toLowerCase().includes(q)) ||
            (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
   });
+
+  let visitsListHtml = "";
+  if (filteredVisits.length === 0) {
+    visitsListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma visita encontrada.</p>';
+  } else {
+    filteredVisits.slice().reverse().forEach(v => {
+      visitsListHtml += `
+        <div class="card-item" style="border-left: 4px solid var(--navy);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <strong>${v.cliente_nome}</strong>
+            <span class="tag ${v.status}">${v.status}</span>
+          </div>
+          <p style="font-size:13px; color:var(--blue); font-weight:700; margin:4px 0;">📅 ${formatarDataBR(v.data_visita)} · ⏰ ${v.horario_visita}</p>
+          <p style="font-size:13px; color:#334155; margin:2px 0;"><strong>Equipamento:</strong> ${v.aparelho_motivo}</p>
+          <p style="font-size:13px; color:var(--muted); margin:2px 0;">📍 ${v.endereco}</p>
+          ${v.observacoes ? `<p style="font-size:12px; color:#64748b; margin-top:4px;"><em>Obs: ${v.observacoes}</em></p>` : ''}
+          ${v.motivo_recusa ? `<p style="font-size:12px; color:var(--red); margin-top:4px; font-weight:700;">⚠️ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
+          <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="sendVisitConfirmationToWhatsApp('${v.telefone}', '${encodeURIComponent(v.cliente_nome)}', '${v.data_visita}', '${encodeURIComponent(v.horario_visita)}', '${encodeURIComponent(v.aparelho_motivo)}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="openMaps('${encodeURIComponent(v.endereco)}')">🗺️ Rota no Maps</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
+            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  let clientVisitOptions = clients.map(c => `<option value="${c.nome}">${c.telefone ? '📱 ' + c.telefone : ''} ${c.endereco ? '· ' + c.endereco : ''}</option>`).join('');
 
   return `
     <div class="layout">
@@ -622,7 +671,7 @@ function renderVisits() {
               onchange="handleVisitClientSelect(this.value)"
             >
             <datalist id="visitClientsDatalist">
-              ${clients.map(c => `<option value="${c.nome}">${c.telefone ? '📱 ' + c.telefone : ''} ${c.endereco ? '· ' + c.endereco : ''}</option>`).join('')}
+              ${clientVisitOptions}
             </datalist>
           </div>
           <div class="two">
@@ -669,25 +718,7 @@ function renderVisits() {
           <input type="text" placeholder="🔍 Buscar por cliente, endereço..." value="${visitSearchQuery}" oninput="filterVisits(this.value)" style="max-width:260px; padding:7px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px;">
         </div>
         <div>
-          ${filteredVisits.length === 0 ? '<p style="color:var(--muted); text-align:center;">Nenhuma visita encontrada.</p>' : filteredVisits.slice().reverse().map(v => `
-            <div class="card-item" style="border-left: 4px solid var(--navy);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <strong>${v.cliente_nome}</strong>
-                <span class="tag ${v.status}">${v.status}</span>
-              </div>
-              <p style="font-size:13px; color:var(--blue); font-weight:700; margin:4px 0;">📅 ${formatarDataBR(v.data_visita)} · ⏰ ${v.horario_visita}</p>
-              <p style="font-size:13px; color:#334155; margin:2px 0;"><strong>Equipamento:</strong> ${v.aparelho_motivo}</p>
-              <p style="font-size:13px; color:var(--muted); margin:2px 0;">📍 ${v.endereco}</p>
-              ${v.observacoes ? `<p style="font-size:12px; color:#64748b; margin-top:4px;"><em>Obs: ${v.observacoes}</em></p>` : ''}
-              ${v.motivo_recusa ? `<p style="font-size:12px; color:var(--red); margin-top:4px; font-weight:700;">⚠️ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
-              <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-                <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="sendVisitConfirmationToWhatsApp('${v.telefone}', '${encodeURIComponent(v.cliente_nome)}', '${v.data_visita}', '${encodeURIComponent(v.horario_visita)}', '${encodeURIComponent(v.aparelho_motivo)}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="openMaps('${encodeURIComponent(v.endereco)}')">🗺️ Rota no Maps</button>
-                <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
-                <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
-              </div>
-            </div>
-          `).join('')}
+          ${visitsListHtml}
         </div>
       </div>
     </div>
@@ -730,7 +761,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -760,7 +791,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -1041,7 +1072,6 @@ async function deleteVisit(id) {
   renderDashboard();
 }
 
-// Funções de auxílio para Clientes e Ordens
 async function saveOrder(e) {
   e.preventDefault();
   const name = document.getElementById("osName").value.trim();
