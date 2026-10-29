@@ -346,6 +346,12 @@ try {
 
 let companyWhatsApp = safeGet(localStorage, "wa_company_phone") || "";
 let companyLogoUrl = safeGet(localStorage, "wa_company_logo") || "";
+// Logo exclusiva das páginas públicas enviadas aos clientes (orçamento e visita).
+let clientLogoUrl = safeGet(localStorage, "wa_client_logo") || "";
+function getPublicClientLogoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("logo") || clientLogoUrl || "";
+}
 let adminPin = safeGet(localStorage, "wa_admin_pin") || "1234";
 let isUnlocked = safeGet(sessionStorage, "wa_unlocked") === "true";
 let activeTab = safeGet(localStorage, "wa_active_tab") || "orders";
@@ -877,7 +883,8 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 
   const publicBaseUrl = safeGet(localStorage, "wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
+  const logoParam = clientLogoUrl ? "&logo=" + encodeURIComponent(clientLogoUrl) : "";
+  const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + encodeURIComponent(orderId) + logoParam;
 
   const texto = 
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
@@ -907,7 +914,8 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
 
   const publicBaseUrl = safeGet(localStorage, "wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
+  const logoParam = clientLogoUrl ? "&logo=" + encodeURIComponent(clientLogoUrl) : "";
+  const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + encodeURIComponent(visitId) + logoParam;
 
   const texto = 
 `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
@@ -972,9 +980,10 @@ function displayClientOrderPage(o) {
       <img src="${o.photoUrl}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
     </div>` : '';
 
-  const logoHeader = companyLogoUrl ? `
+  const publicClientLogo = getPublicClientLogoUrl();
+  const logoHeader = publicClientLogo ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
+      <img src="${publicClientLogo}" alt="Logo da assistência" style="max-height:85px; width:auto; max-width:100%; object-fit:contain;">
     </div>` : '';
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
@@ -1079,9 +1088,10 @@ function renderClientVisitView(id) {
 function displayClientVisitPage(v) {
   const dataFormatada = formatarDataBR(v.data_visita);
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
-  const logoHeader = companyLogoUrl ? `
+  const publicClientLogo = getPublicClientLogoUrl();
+  const logoHeader = publicClientLogo ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
+      <img src="${publicClientLogo}" alt="Logo da assistência" style="max-height:85px; width:auto; max-width:100%; object-fit:contain;">
     </div>` : '';
 
   const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
@@ -1322,12 +1332,18 @@ function openKeyModal() {
   modal.innerHTML = `
     <div class="modal-box">
       <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurações da WA Resolve</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Personalize a sua Logo e os links públicos.</p>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Configure separadamente a logo do painel e a logo que aparece nas páginas enviadas aos clientes.</p>
       
       <div class="field">
         <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
         <input id="modalLogoInput" placeholder="Ex: https://welisonalexandre-ship-it.github.io/WA_Resolver/logo.png" value="${companyLogoUrl}">
         <small style="color:var(--muted); font-size:11px;">Área reservada no topo: 384x72px. Use uma imagem horizontal com fundo transparente.</small>
+      </div>
+
+      <div class="field">
+        <label>🧾 Logo das páginas do cliente (orçamento e visita)</label>
+        <input id="modalClientLogoInput" placeholder="https://seusite.com/logo-cliente.png" value="${clientLogoUrl}">
+        <small style="color:var(--muted); font-size:11px;">Independente da logo do topo do sistema. Use um link público de imagem PNG/JPG/SVG. Ela será incluída nos links enviados por WhatsApp.</small>
       </div>
 
       <div class="field">
@@ -1346,9 +1362,12 @@ function openKeyModal() {
 
 function saveSettingsModal(btn) {
   const logo = document.getElementById("modalLogoInput").value.trim();
+  const clientLogo = document.getElementById("modalClientLogoInput").value.trim();
   const urlPub = document.getElementById("modalPublicUrl").value.trim();
   companyLogoUrl = logo;
+  clientLogoUrl = clientLogo;
   safeSet(localStorage, "wa_company_logo", logo);
+  safeSet(localStorage, "wa_client_logo", clientLogo);
   safeSet(localStorage, "wa_public_url", urlPub);
   btn.closest(".modal").remove();
   alert("Configurações salvas com sucesso!");
@@ -1506,7 +1525,7 @@ openMaps = function(endereco) {
 
 function copyLink(id) {
   const publicBaseUrl = safeGet(localStorage, "wa_public_url") || "";
-  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + id;
+  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "?cliente=" + encodeURIComponent(id) + (clientLogoUrl ? "&logo=" + encodeURIComponent(clientLogoUrl) : "");
   navigator.clipboard.writeText(url).then(() => {
     alert("Link copiado para a área de transferência!\n\n" + url);
   }).catch(() => {
