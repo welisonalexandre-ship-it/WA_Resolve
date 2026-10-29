@@ -890,25 +890,10 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeCliente = decodeURIComponent(clientName);
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
-  const o = orders.find(item => item.id === orderId);
 
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  
-  const params = new URLSearchParams();
-  params.set("cliente", orderId);
-  params.set("nome", nomeCliente);
-  params.set("app", nomeAparelho);
-  params.set("preco", price);
-  if (o && o.brand) params.set("brand", o.brand);
-  if (o && o.problem) params.set("prob", o.problem);
-  if (o && (o.diagnosis || detalhesTxt)) params.set("diag", o.diagnosis || detalhesTxt);
-  if (o && o.refusalFee) params.set("fee", o.refusalFee);
-  if (o && o.photoUrl) params.set("foto", o.photoUrl);
-  if (o && o.status) params.set("status", o.status);
-  if (companyLogoUrl) params.set("logo", companyLogoUrl);
-
-  const urlOs = activeBase.replace(/\/$/, "") + "?" + params.toString();
+  const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
   const texto = 
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
@@ -937,7 +922,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
 
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId + (companyLogoUrl ? "&logo=" + encodeURIComponent(companyLogoUrl) : "");
+  const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
   const texto = 
 `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
@@ -951,26 +936,6 @@ ${urlVisita}`;
 }
 
 function renderClientView(id) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const clienteParamNome = urlParams.get("nome");
-  
-  if (clienteParamNome) {
-    const o = {
-      id: id,
-      name: decodeURIComponent(clienteParamNome),
-      appliance: decodeURIComponent(urlParams.get("app") || "Aparelho"),
-      brand: decodeURIComponent(urlParams.get("brand") || ""),
-      problem: decodeURIComponent(urlParams.get("prob") || ""),
-      diagnosis: decodeURIComponent(urlParams.get("diag") || ""),
-      price: Number(urlParams.get("preco")) || 0,
-      refusalFee: Number(urlParams.get("fee")) || 30,
-      photoUrl: decodeURIComponent(urlParams.get("foto") || ""),
-      status: decodeURIComponent(urlParams.get("status") || "Aguardando aprovação")
-    };
-    displayClientOrderPage(o);
-    return;
-  }
-
   document.getElementById("app").innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
 
   let cleanId = String(id).replace(/\D/g, "");
@@ -1014,12 +979,9 @@ function displayClientOrderPage(o) {
       <img src="${o.photoUrl}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
     </div>` : '';
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const paramLogo = urlParams.get("logo");
-  const displayLogo = paramLogo ? decodeURIComponent(paramLogo) : companyLogoUrl;
-  const logoHeader = displayLogo ? `
+  const logoHeader = companyLogoUrl ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${displayLogo}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
+      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
     </div>` : '';
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
@@ -1128,12 +1090,9 @@ function renderClientVisitView(id) {
 function displayClientVisitPage(v) {
   const dataFormatada = formatarDataBR(v.data_visita);
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
-  const urlParams = new URLSearchParams(window.location.search);
-  const paramLogo = urlParams.get("logo");
-  const displayLogo = paramLogo ? decodeURIComponent(paramLogo) : companyLogoUrl;
-  const logoHeader = displayLogo ? `
+  const logoHeader = companyLogoUrl ? `
     <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${displayLogo}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
+      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
     </div>` : '';
 
   const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
