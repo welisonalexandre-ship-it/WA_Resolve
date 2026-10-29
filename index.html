@@ -238,12 +238,11 @@ function syncFromSupabase() {
   if (!supabaseClient) return;
   supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData, error: cErr }) => {
     if (!cErr && cData && cData.length > 0) {
-      // Mesclamos os dados da nuvem com os endereços salvos localmente para garantir que nenhum endereço suma
       clients = cData.map(dbClient => {
         const localMatch = clients.find(lc => String(lc.id) === String(dbClient.id) || (lc.nome && dbClient.nome && lc.nome.toLowerCase() === dbClient.nome.toLowerCase()));
         return {
           ...dbClient,
-          endereco: dbClient.endereco || (localMatch ? localMatch.endereco : "")
+          endereco: dbClient.endereco || (localMatch && localMatch.endereco ? localMatch.endereco : "")
         };
       });
       localStorage.setItem("wa_clients", JSON.stringify(clients));
@@ -1066,6 +1065,7 @@ async function saveClient(e) {
 
   if (supabaseClient) {
     try {
+      // Tentamos salvar com endereço; se a coluna não existir no Supabase, tentamos sem endereço
       let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone, endereco: endereco }]).select();
       if (error) {
         let res2 = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
