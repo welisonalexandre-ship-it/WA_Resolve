@@ -893,6 +893,8 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 
   const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
+  
+  // Link limpo e curto
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
   const texto = 
