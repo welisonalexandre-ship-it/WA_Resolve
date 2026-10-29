@@ -30,27 +30,32 @@
       border-radius: 8px;
       padding: 10px 14px;
       font-weight: 700;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s, transform 0.1s;
     }
-    button:hover { opacity: 0.9; }
+    button:hover { opacity: 0.92; }
+    button:active { transform: scale(0.98); }
     .primary { background: var(--navy); color: #fff; }
     .secondary { background: #eaf0f8; color: var(--navy); }
     .gold { background: var(--gold); color: var(--navy); }
-    .whatsapp-btn { background: #25d366; color: #fff; }
+    .whatsapp-btn { background: #25d366; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
     .danger-btn { background: #fee2e2; color: var(--red); }
     
     .top {
       background: var(--navy);
       color: #fff;
-      padding: 12px 20px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 16px;
       flex-wrap: wrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-logo-img { height: 42px; width: auto; max-width: 110px; object-fit: contain; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo-img { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
+    .brand-info h1 { font-size: 16px; font-weight: 800; letter-spacing: 0.3px; }
+    .brand-info p { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
+    
     .brand-badge {
       background: #fff;
       color: var(--navy);
@@ -62,91 +67,114 @@
     }
     .sb-badge {
       font-size: 12px;
-      padding: 6px 12px;
+      padding: 7px 14px;
       border-radius: 99px;
       font-weight: 700;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .sb-on { background: #d1fae5; color: #065f46; }
     .sb-off { background: #fee2e2; color: #991b1b; }
     
     .nav-tabs {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       background: #e2e8f0;
       padding: 6px;
-      border-radius: 10px;
-      margin: 16px 20px 0;
-      flex-wrap: wrap;
+      border-radius: 12px;
+      margin: 20px 24px 0;
+      max-width: 1150px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .nav-tab {
       background: transparent;
       border: 0;
-      padding: 8px 16px;
-      border-radius: 6px;
+      padding: 10px 18px;
+      border-radius: 8px;
       font-weight: 700;
       color: var(--navy);
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
     }
     .nav-tab.active {
       background: #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      color: var(--blue);
     }
     
-    .content { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
     .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
     }
     .stat {
       background: #fff;
-      padding: 16px;
-      border-radius: 12px;
+      padding: 18px;
+      border-radius: 14px;
       border: 1px solid var(--line);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
     }
-    .stat span { font-size: 12px; color: var(--muted); }
-    .stat strong { display: block; font-size: 24px; margin-top: 4px; color: var(--navy); }
+    .stat span { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat strong { display: block; font-size: 26px; margin-top: 6px; color: var(--navy); }
     
     .layout {
       display: grid;
-      grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.2fr);
-      gap: 16px;
+      grid-template-columns: minmax(340px, 1fr) minmax(340px, 1.3fr);
+      gap: 20px;
     }
-    @media(max-width: 850px) { .layout { grid-template-columns: 1fr; } }
+    @media(max-width: 900px) { .layout { grid-template-columns: 1fr; } }
     
     .panel {
       background: #fff;
       border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 20px;
-      margin-bottom: 16px;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.03);
     }
-    .panel h2 { font-size: 17px; margin-bottom: 14px; color: var(--navy); }
+    .panel h2 { font-size: 18px; margin-bottom: 16px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
     
-    .field { margin-bottom: 12px; display: grid; gap: 5px; position: relative; }
+    .field { margin-bottom: 14px; display: grid; gap: 6px; position: relative; }
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select, .field textarea {
       width: 100%;
       border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 9px 12px;
+      border-radius: 10px;
+      padding: 11px 14px;
       background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    @media(max-width: 500px) { .two { grid-template-columns: 1fr; } }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(29, 71, 122, 0.1);
+    }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media(max-width: 550px) { .two { grid-template-columns: 1fr; } }
     
     .card-item {
       background: #fff;
       border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 10px;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .card-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
     .tag {
       display: inline-block;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 99px;
       font-size: 11px;
       font-weight: 700;
@@ -155,20 +183,21 @@
     }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
     .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
-    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada { background: #d1fae5; color: #065f46; }
+    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada { background: #d1fae5; color: #065f46; }
     .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado { background: #fee2e2; color: var(--red); }
     
     .modal {
-      position: fixed; inset: 0; background: rgba(16,43,80,0.5);
+      position: fixed; inset: 0; background: rgba(16,43,80,0.5); backdrop-filter: blur(2px);
       display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
     }
     .modal-box {
-      background: #fff; border-radius: 14px; max-width: 480px; width: 100%; padding: 22px;
+      background: #fff; border-radius: 16px; max-width: 480px; width: 100%; padding: 24px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.15);
     }
     .lock-screen {
-      max-width: 380px; margin: 80px auto; background: #fff; padding: 30px;
-      border-radius: 16px; border: 1px solid var(--line); text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      max-width: 400px; margin: 80px auto; background: #fff; padding: 36px;
+      border-radius: 20px; border: 1px solid var(--line); text-align: center;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.06);
     }
   </style>
 </head>
@@ -194,6 +223,7 @@ let companyLogoUrl = localStorage.getItem("wa_company_logo") || "";
 let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
 let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
 let activeTab = localStorage.getItem("wa_active_tab") || "orders";
+let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
 
 let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
 let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
@@ -208,7 +238,6 @@ function formatarDataBR(dataIso) {
   return dataIso;
 }
 
-// Execução imediata no carregamento da página com tratamento blindado
 window.addEventListener("DOMContentLoaded", () => {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -245,6 +274,7 @@ function syncFromSupabase() {
           endereco: dbClient.endereco || (localMatch && localMatch.endereco ? localMatch.endereco : "")
         };
       });
+      clients = clients.concat(clients.filter(lc => !cData.some(dc => String(dc.id) === String(lc.id))));
       localStorage.setItem("wa_clients", JSON.stringify(clients));
     }
   });
@@ -283,9 +313,10 @@ function syncFromSupabase() {
         aparelho_motivo: v.aparelho_motivo,
         observacoes: v.observacoes,
         motivo_recusa: v.motivo_recusa || "",
-        status: v.status
+        status: v.status || "Agendada"
       }));
       localStorage.setItem("wa_visits", JSON.stringify(visits));
+      if (activeTab === 'visits') renderDashboard();
     }
   });
 }
@@ -323,7 +354,10 @@ function renderLockScreen() {
     <header class="top">
       <div class="brand">
         ${brandDisplay}
-        <span>Painel do Gestor</span>
+        <div class="brand-info">
+          <h1>Central de Serviços</h1>
+          <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
+        </div>
       </div>
     </header>
     <div class="lock-screen">
@@ -347,25 +381,28 @@ function renderDashboard() {
     : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
 
   const companyBadge = companyWhatsApp 
-    ? `<span style="font-size:12px; color:#d1fae5; cursor:pointer;" onclick="editCompanyWhatsApp()">📲 Meu WhatsApp: ${companyWhatsApp}</span>`
+    ? `<a href="https://wa.me/55${companyWhatsApp.replace(/\D/g,'')}" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</a>`
     : `<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>`;
 
   const brandDisplay = companyLogoUrl 
     ? `<img src="${companyLogoUrl}" class="brand-logo-img" alt="Logo">` 
-    : `<div class="brand-badge">WA RESOLVE</div>`;
+    : `<div class="brand-badge">WA</div>`;
 
   const header = `
     <header class="top">
       <div class="brand">
         ${brandDisplay}
-        <span style="font-weight:700; font-size:15px;">Central de Serviços</span>
+        <div class="brand-info">
+          <h1>Central de Serviços</h1>
+          <p>Rapidez • Honestidade • Garantia • Preço Justo</p>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         ${companyBadge}
         ${sbStatus}
-        <button class="secondary" style="padding:6px 12px; font-size:12px;" onclick="openKeyModal()">🎨 Logo / Config</button>
-        <button class="secondary" style="padding:6px 12px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
-        <button class="secondary" style="padding:6px 12px; font-size:12px;" onclick="lock()">Bloquear</button>
+        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">🎨 Logo / Config</button>
+        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
+        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
       </div>
     </header>
     <div class="nav-tabs">
@@ -399,7 +436,7 @@ function renderOrders() {
       <div class="stat"><span>Aguardando Aprovação</span><strong>${awaiting}</strong></div>
       <div class="stat"><span>Em Conserto / Aprovados</span><strong>${inProgress}</strong></div>
       <div class="stat" style="border-left:4px solid var(--red);">
-        <span>Custos / Taxas de Não Aprovados</span>
+        <span>Taxas de Não Aprovados</span>
         <strong style="color:var(--red);">R$ ${totalRefusalFees.toFixed(2)}</strong>
         <small style="font-size:11px; color:var(--muted);">${refused.length} orçamento(s) recusado(s)</small>
       </div>
@@ -448,7 +485,7 @@ function renderOrders() {
             <div class="field">
               <label>Taxa por Não Aprovação (R$) *</label>
               <input id="osRefusalFee" required type="number" step="0.01" value="30.00" placeholder="Ex: 30.00">
-              <small style="font-size:11px; color:var(--muted);">Custo cobrado se o cliente recusar o orçamento (análise/deslocamento).</small>
+              <small style="font-size:11px; color:var(--muted);">Custo cobrado se recusado (análise/deslocamento).</small>
             </div>
           </div>
           <div class="field">
@@ -456,9 +493,9 @@ function renderOrders() {
             <input type="file" id="osFile" accept="image/*" onchange="handleImageUpload(event)" style="padding:8px; background:#f8fafc; border:1px dashed #cbd5e1;">
             <input type="hidden" id="osPhoto" placeholder="Link ou imagem da foto">
             <div id="previewContainer" style="margin-top:8px; display:none; text-align:center; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line);">
-              <img id="imagePreview" src="" alt="Pré-visualização da foto" style="max-height:120px; max-width:100%; border-radius:6px; object-fit:contain;">
+              <img id="imagePreview" src="" alt="Pré-visualização" style="max-height:120px; max-width:100%; border-radius:6px; object-fit:contain;">
             </div>
-            <small style="font-size:11px; color:var(--muted);">Escolha uma foto do seu computador ou cole o link da imagem abaixo:</small>
+            <small style="font-size:11px; color:var(--muted);">Escolha uma foto ou cole o link abaixo:</small>
             <input id="osPhotoUrlDirect" placeholder="Ou cole a URL da imagem aqui" style="margin-top:4px;" oninput="document.getElementById('osPhoto').value=this.value">
           </div>
           <button type="submit" class="primary" style="width:100%; margin-top:8px;">Cadastrar e Salvar Ordem</button>
@@ -560,6 +597,14 @@ function renderClients() {
 }
 
 function renderVisits() {
+  const filteredVisits = visits.filter(v => {
+    if (!visitSearchQuery) return true;
+    const q = visitSearchQuery.toLowerCase();
+    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) || 
+           (v.endereco && v.endereco.toLowerCase().includes(q)) ||
+           (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
+  });
+
   return `
     <div class="layout">
       <div class="panel">
@@ -619,9 +664,12 @@ function renderVisits() {
       </div>
 
       <div class="panel">
-        <h2>Visitas Agendadas (${visits.length})</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <h2 style="margin-bottom:0;">Visitas Agendadas (${visits.length})</h2>
+          <input type="text" placeholder="🔍 Buscar por cliente, endereço..." value="${visitSearchQuery}" oninput="filterVisits(this.value)" style="max-width:260px; padding:7px 12px; font-size:13px; border:1px solid #cbd5e1; border-radius:8px;">
+        </div>
         <div>
-          ${visits.length === 0 ? '<p style="color:var(--muted); text-align:center;">Nenhuma visita agendada.</p>' : visits.slice().reverse().map(v => `
+          ${filteredVisits.length === 0 ? '<p style="color:var(--muted); text-align:center;">Nenhuma visita encontrada.</p>' : filteredVisits.slice().reverse().map(v => `
             <div class="card-item" style="border-left: 4px solid var(--navy);">
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <strong>${v.cliente_nome}</strong>
@@ -644,6 +692,12 @@ function renderVisits() {
       </div>
     </div>
   `;
+}
+
+function filterVisits(q) {
+  visitSearchQuery = q;
+  localStorage.setItem("wa_visit_search", q);
+  renderDashboard();
 }
 
 function handleVisitClientSelect(valorDigitado) {
@@ -676,7 +730,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlOs = activeBase.replace(/\/$/, "") + "?cliente=" + orderId;
 
@@ -706,7 +760,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "";
+  const publicBaseUrl = localStorage.getItem("wa_public_url"] || "";
   const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
   const urlVisita = activeBase.replace(/\/$/, "") + "?visita=" + visitId;
 
@@ -1065,7 +1119,6 @@ async function saveClient(e) {
 
   if (supabaseClient) {
     try {
-      // Tentamos salvar com endereço; se a coluna não existir no Supabase, tentamos sem endereço
       let { data, error } = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone, endereco: endereco }]).select();
       if (error) {
         let res2 = await supabaseClient.from("clientes").insert([{ nome: nome, telefone: telefone }]).select();
