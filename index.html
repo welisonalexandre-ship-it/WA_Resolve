@@ -830,10 +830,11 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const nomeAparelho = decodeURIComponent(appliance);
   const detalhesTxt = decodeURIComponent(details || "");
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  
-  const urlOs = activeBase.replace(/\/$/, "") + "/#cliente=" + orderId;
+  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  if (!base.includes("WA_Resolver")) {
+    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  }
+  const urlOs = base.replace(/\/$/, "") + "/#cliente=" + orderId;
 
   const texto = 
 `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
@@ -860,9 +861,11 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  const activeBase = publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl : window.location.origin + window.location.pathname;
-  const urlVisita = activeBase.replace(/\/$/, "") + "/#visita=" + visitId;
+  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  if (!base.includes("WA_Resolver")) {
+    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  }
+  const urlVisita = base.replace(/\/$/, "") + "/#visita=" + visitId;
 
   const texto = 
 `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
@@ -910,7 +913,7 @@ function renderClientView(id) {
 function displayClientOrderPage(o) {
   const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
   const contactCompanyBtn = companyPhoneClean 
-    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>`
+    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência na WhatsApp</button>`
     : '';
 
   const photoHtml = o.photoUrl ? `
@@ -934,7 +937,7 @@ function displayClientOrderPage(o) {
   ` : `
     <div style="margin-top:20px; display:grid; gap:10px;">
       <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
-      <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+      <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
       ${contactCompanyBtn}
     </div>
   `;
@@ -1079,7 +1082,7 @@ function displayClientVisitPage(v) {
 
       ${companyPhoneClean ? `
         <div style="margin-top:20px; text-align:center;">
-          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>
+          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência na WhatsApp</button>
         </div>
       ` : ''}
     </div>
@@ -1282,7 +1285,7 @@ function saveSettingsModal(btn) {
   companyLogoUrl = logo;
   localStorage.setItem("wa_company_logo", logo);
   localStorage.setItem("wa_public_url", urlPub);
-  btn.closest(".modal").remove();
+  btn.closest('.modal').remove();
   alert("Configurações salvas com sucesso!");
   renderDashboard();
 }
@@ -1392,8 +1395,11 @@ function openMaps(endereco) {
 }
 
 function copyLink(id) {
-  const publicBaseUrl = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  let url = (publicBaseUrl && publicBaseUrl.startsWith("http") ? publicBaseUrl.replace(/\/$/, "") : window.location.origin + window.location.pathname) + "/#cliente=" + id;
+  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  if (!base.includes("WA_Resolver")) {
+    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  }
+  let url = base.replace(/\/$/, "") + "/#cliente=" + id;
   navigator.clipboard.writeText(url).then(() => {
     alert("Link copiado para a área de transferência!\n\n" + url);
   }).catch(() => {
