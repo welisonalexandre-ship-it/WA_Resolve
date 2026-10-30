@@ -995,25 +995,58 @@ function changeVisitStatus(id) {
   renderDashboard();
 }
 
+// Gera links usando o endereço público atual do sistema.
+// Se houver uma URL pública configurada nas configurações, ela tem prioridade.
+function getPublicSiteBaseUrl() {
+  const configured = (localStorage.getItem("wa_public_url") || "").trim();
+  const candidate = configured || (window.location.origin + window.location.pathname);
+
+  try {
+    const parsed = new URL(candidate, window.location.href);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("Endereço público inválido.");
+    }
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.href.replace(/\/$/, "") + "/";
+  } catch (error) {
+    console.error("URL pública inválida:", error);
+    return window.location.origin + window.location.pathname.replace(/[^/]*$/, "");
+  }
+}
+
+function getOrderDatabaseId(orderId) {
+  const order = orders.find(item => String(item.id) === String(orderId));
+  // Só aceita o ID real retornado pelo Supabase; IDs locais antigos eram aleatórios.
+  if (!order || order.localOnly || !order.dbId) return null;
+  const rawId = String(order.dbId);
+  return /^\d+$/.test(rawId) && Number(rawId) > 0 ? rawId : null;
+}
+
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
   const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) {
     alert("Esta ordem não possui o WhatsApp do cliente cadastrado.");
     return;
   }
-  
-  const nomeCliente = decodeURIComponent(clientName);
-  const nomeAparelho = decodeURIComponent(appliance);
-  const detalhesTxt = decodeURIComponent(details || "");
 
-  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  if (!base.includes("WA_Resolver")) {
-    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  const dbId = getOrderDatabaseId(orderId);
+  const order = orders.find(item => String(item.id) === String(orderId));
+  if (!dbId || (order && order.localOnly)) {
+    alert("Esta ordem foi salva somente neste aparelho e ainda não está disponível na nuvem. Para enviar um link ao cliente, é necessário salvar a ordem no Supabase com sucesso.");
+    return;
   }
-  const urlOs = base.replace(/\/$/, "") + "/#cliente=" + orderId;
 
-  const texto = 
-`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
+  const decodeSafe = value => {
+    try { return decodeURIComponent(value || ""); } catch (_) { return value || ""; }
+  };
+  const nomeCliente = decodeSafe(clientName);
+  const nomeAparelho = decodeSafe(appliance);
+  const detalhesTxt = decodeSafe(details || "");
+  const urlOs = getPublicSiteBaseUrl() + "#cliente=" + encodeURIComponent(dbId);
+
+  const texto =
+`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (WR-${dbId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
 ${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
@@ -1022,7 +1055,7 @@ ${urlOs}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
   const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
-  window.open(url, "_blank");
+  window.open(url, "_blank", "noopener");
 }
 
 function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, aparelho, visitId) {
@@ -1037,11 +1070,7 @@ function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, ap
   const horarioTxt = decodeURIComponent(horario);
   const dataFormatada = formatarDataBR(dataIso);
 
-  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  if (!base.includes("WA_Resolver")) {
-    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  }
-  const urlVisita = base.replace(/\/$/, "") + "/#visita=" + visitId;
+  const urlVisita = getPublicSiteBaseUrl() + "#visita=" + encodeURIComponent(String(visitId).replace(/\D/g, ""));
 
   const texto = 
 `Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
@@ -1055,36 +1084,42 @@ ${urlVisita}`;
 }
 
 function renderClientView(id) {
-  document.getElementById("app").innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
+  const app = document.getElementById("app");
+  app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2><p style="color:var(--muted);">Aguarde um instante.</p></div>';
 
-  let cleanId = String(id).replace(/\D/g, "");
-
-  if (supabaseClient && cleanId) {
-    supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({data, error}) => {
-      if (!error && data) {
-        const o = {
-          id: "WR-" + data.id,
-          dbId: data.id,
-          name: data.clientes ? data.clientes.nome : "Cliente",
-          phone: data.clientes ? data.clientes.telefone : "",
-          appliance: data.titulo_servico || "Aparelho",
-          brand: data.marca || "",
-          problem: data.defeito || data.descricao || "",
-          diagnosis: data.diagnostico || "",
-          price: Number(data.orcamento) || 0,
-          refusalFee: Number(data.taxa_recusa) || 0,
-          photoUrl: data.foto_url || "",
-          status: data.status || "Aguardando aprovação",
-          partsUsed: data.pecas_usadas || []
-        };
-        displayClientOrderPage(o);
-      } else {
-        document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
-      }
-    });
-  } else {
-    document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+  const cleanId = String(id || "").replace(/\D/g, "");
+  if (!supabaseClient || !cleanId) {
+    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem indisponível</h2><p style="color:var(--muted);">Não foi possível conectar à base de dados ou o número da ordem é inválido. Entre em contato com a WA Resolve.</p></div>';
+    return;
   }
+
+  supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
+    if (error || !data) {
+      console.error("Falha ao consultar orçamento público:", error);
+      app.innerHTML = '<div style="max-width:520px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Não foi possível localizar este orçamento</h2><p style="color:var(--muted);">Confira se o link está correto. Se o problema continuar, entre em contato com a WA Resolve. A consulta pública também precisa estar liberada nas permissões do banco de dados.</p></div>';
+      return;
+    }
+
+    const o = {
+      id: "WR-" + data.id,
+      dbId: data.id,
+      name: data.clientes ? data.clientes.nome : "Cliente",
+      phone: data.clientes ? data.clientes.telefone : "",
+      appliance: data.titulo_servico || "Aparelho",
+      brand: data.marca || "",
+      problem: data.defeito || data.descricao || "",
+      diagnosis: data.diagnostico || "",
+      price: Number(data.orcamento) || 0,
+      refusalFee: Number(data.taxa_recusa) || 0,
+      photoUrl: data.foto_url || "",
+      status: data.status || "Aguardando aprovação",
+      partsUsed: data.pecas_usadas || []
+    };
+    displayClientOrderPage(o);
+  }).catch(error => {
+    console.error("Erro inesperado ao carregar orçamento:", error);
+    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Erro ao carregar orçamento</h2><p style="color:var(--muted);">Tente novamente ou fale com a WA Resolve.</p></div>';
+  });
 }
 
 function displayClientOrderPage(o) {
@@ -1373,16 +1408,6 @@ function removePartFromOrder(idx) {
 async function saveOrder(e) {
   e.preventDefault();
   const name = document.getElementById("osName").value.trim();
-  
-  let partsUsed = [...currentOsParts];
-  partsUsed.forEach(pu => {
-    const partObj = parts.find(item => String(item.id) === String(pu.id));
-    if (partObj) {
-      partObj.estoque = Math.max(0, (partObj.estoque || 0) - (pu.qtd || 1));
-    }
-  });
-  localStorage.setItem("wa_parts", JSON.stringify(parts));
-  currentOsParts = [];
   const phone = document.getElementById("osPhone").value.trim();
   const appliance = document.getElementById("osAppliance").value.trim();
   const brand = document.getElementById("osBrand").value.trim();
@@ -1392,22 +1417,25 @@ async function saveOrder(e) {
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
   const status = "Aguardando aprovação";
+  const partsUsed = [...currentOsParts];
 
+  // Não baixa o estoque antes de confirmar o salvamento da ordem.
   let cId = null;
-
   if (supabaseClient) {
     try {
-      let { data: existingClient } = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
-      if (existingClient && existingClient.length > 0) {
-        cId = existingClient[0].id;
+      const clientResult = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
+      if (clientResult.error) throw clientResult.error;
+
+      if (clientResult.data && clientResult.data.length > 0) {
+        cId = clientResult.data[0].id;
       } else {
-        let resClient = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select();
-        if (resClient.data && resClient.data.length > 0) {
-          cId = resClient.data[0].id;
-        }
+        const newClientResult = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select("id").single();
+        if (newClientResult.error) throw newClientResult.error;
+        if (!newClientResult.data) throw new Error("Não foi possível cadastrar o cliente na nuvem.");
+        cId = newClientResult.data.id;
       }
 
-      let osRes = await supabaseClient.from("ordens_servico").insert([{
+      const osRes = await supabaseClient.from("ordens_servico").insert([{
         cliente_id: cId,
         titulo_servico: appliance,
         marca: brand,
@@ -1418,30 +1446,40 @@ async function saveOrder(e) {
         foto_url: photoUrl,
         status: status,
         pecas_usadas: partsUsed
-      }]).select();
+      }]).select("id").single();
 
-      if (osRes.data && osRes.data[0]) {
-        const createdId = "WR-" + osRes.data[0].id;
-        orders.push({
-          id: createdId,
-          dbId: osRes.data[0].id,
-          name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed,
-          created: new Date().toISOString()
-        });
-        localStorage.setItem("wa_orders", JSON.stringify(orders));
-        alert("Ordem " + createdId + " salva com sucesso na nuvem!");
-        renderDashboard();
-        return;
-      }
-    } catch(err) {
-      console.warn("Erro ao salvar OS na nuvem:", err);
+      if (osRes.error) throw osRes.error;
+      if (!osRes.data || !osRes.data.id) throw new Error("O banco não retornou o número da ordem.");
+
+      const dbId = osRes.data.id;
+      const createdId = "WR-" + dbId;
+      orders.push({
+        id: createdId, dbId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed,
+        created: new Date().toISOString(), localOnly: false
+      });
+      localStorage.setItem("wa_orders", JSON.stringify(orders));
+
+      partsUsed.forEach(pu => {
+        const partObj = parts.find(item => String(item.id) === String(pu.id));
+        if (partObj) partObj.estoque = Math.max(0, (partObj.estoque || 0) - (pu.qtd || 1));
+      });
+      localStorage.setItem("wa_parts", JSON.stringify(parts));
+      currentOsParts = [];
+      alert("Ordem " + createdId + " salva na nuvem! Agora o link do cliente poderá ser enviado.");
+      renderDashboard();
+      return;
+    } catch (err) {
+      console.error("Erro ao salvar OS na nuvem:", err);
+      alert("Não foi possível salvar a ordem na nuvem. Ela será guardada somente neste aparelho e NÃO terá link público para o cliente. Verifique a conexão/permissões do Supabase.\n\nDetalhe: " + (err.message || err));
     }
+  } else {
+    alert("O sistema está sem conexão com o Supabase. A ordem será guardada somente neste aparelho e não poderá ser enviada por link público.");
   }
 
-  const tempId = "WR-" + Math.floor(1000 + Math.random() * 9000);
-  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, created: new Date().toISOString() });
+  const tempId = "WR-LOCAL-" + Date.now();
+  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, created: new Date().toISOString(), localOnly: true });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
-  alert("Ordem " + tempId + " cadastrada com sucesso!");
+  currentOsParts = [];
   renderDashboard();
 }
 
@@ -1526,8 +1564,9 @@ function openKeyModal() {
       </div>
 
       <div class="field">
-        <label>🌐 Link do GitHub Pages</label>
-        <input id="modalPublicUrl" placeholder="https://seusite.github.io/WA_Resolver/" value="${localStorage.getItem("wa_public_url") || ""}">
+        <label>🌐 Endereço público do sistema (opcional)</label>
+        <input id="modalPublicUrl" placeholder="Deixe vazio para usar o endereço atual do site" value="${localStorage.getItem("wa_public_url") || ""}">
+        <small style="color:var(--muted); font-size:11px;">Use o endereço publicado do WA Resolve. Não informe o endereço do painel local do seu computador.</small>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
@@ -1655,16 +1694,23 @@ function openMaps(endereco) {
 }
 
 function copyLink(id) {
-  let base = localStorage.getItem("wa_public_url") || "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
-  if (!base.includes("WA_Resolver")) {
-    base = "https://welisonalexandre-ship-it.github.io/WA_Resolver/";
+  const dbId = getOrderDatabaseId(id);
+  const order = orders.find(item => String(item.id) === String(id));
+  if (!dbId || (order && order.localOnly)) {
+    alert("Não é possível criar um link público: esta ordem não foi salva na nuvem. Verifique a conexão com o Supabase e salve a ordem novamente.");
+    return;
   }
-  let url = base.replace(/\/$/, "") + "/#cliente=" + id;
-  navigator.clipboard.writeText(url).then(() => {
-    alert("Link copiado para a área de transferência!\n\n" + url);
-  }).catch(() => {
+
+  const url = getPublicSiteBaseUrl() + "#cliente=" + encodeURIComponent(dbId);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert("Link copiado para a área de transferência!\n\n" + url);
+    }).catch(() => {
+      prompt("Copie o link abaixo:", url);
+    });
+  } else {
     prompt("Copie o link abaixo:", url);
-  });
+  }
 }
 
 function changeOrderStatus(id) {
