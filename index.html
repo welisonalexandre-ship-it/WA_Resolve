@@ -469,7 +469,7 @@ function renderOrders() {
   } else {
     orders.slice().reverse().forEach(o => {
       ordersListHtml += `
-        <div class="card-item">
+        <div class="card-item visit-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
               <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
@@ -511,7 +511,7 @@ function renderOrders() {
     
     <div class="layout">
       <div class="panel">
-        <h2>＋ Cadastrar Nova Ordem</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📋</span> Cadastrar Nova Ordem</h2>
         <form onsubmit="saveOrder(event)">
           <div class="two">
             <div class="field">
@@ -570,7 +570,7 @@ function renderOrders() {
       </div>
 
       <div class="panel">
-        <h2>Ordens Cadastradas (${orders.length})</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📄</span> Ordens Cadastradas (${orders.length})</h2>
         <div>
           ${ordersListHtml}
         </div>
@@ -601,7 +601,7 @@ function renderClients() {
   } else {
     clients.slice().reverse().forEach(c => {
       clientsListHtml += `
-        <div class="card-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="card-item visit-card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <div style="flex:1; min-width:185px;">
             <strong style="font-size:15px; color:var(--navy);">${c.nome}</strong>
             <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'}</p>
@@ -621,7 +621,7 @@ function renderClients() {
   return `
     <div class="layout">
       <div class="panel">
-        <h2>＋ Novo Cliente</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">👤</span> Novo Cliente</h2>
         <form onsubmit="saveClient(event)">
           <div class="field">
             <label>Nome Completo *</label>
@@ -640,7 +640,7 @@ function renderClients() {
       </div>
 
       <div class="panel">
-        <h2>Meus Clientes (${clients.length})</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">👥</span> Meus Clientes (${clients.length})</h2>
         <div>
           ${clientsListHtml}
         </div>
@@ -698,7 +698,7 @@ function renderVisits() {
   return `
     <div class="layout visits-layout">
       <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">▦</span> Agendar Visita Técnica</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📅</span> Agendar Visita Técnica</h2>
         <form onsubmit="saveVisit(event)">
           <div class="field">
             <label>Nome do Cliente * <span style="font-weight:500;color:#77869a;">(Clique ou comece a digitar)</span></label>
@@ -745,7 +745,7 @@ function renderVisits() {
 
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-          <h2 style="margin-bottom:0;"><span style="color:#1672d3;font-size:22px;">▦</span> Visitas Agendadas (${visits.length})</h2>
+          <h2 style="margin-bottom:0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;margin-right:8px;">📅</span> Visitas Agendadas (${visits.length})</h2>
           <input class="visit-search" type="text" placeholder="⌕  Buscar por cliente, endereço..." value="${visitSearchQuery.replace(/"/g, '&quot;')}" oninput="filterVisits(this.value)">
         </div>
         <div>${visitsListHtml}</div>
@@ -934,7 +934,7 @@ function displayClientOrderPage(o) {
   ` : `
     <div style="margin-top:20px; display:grid; gap:10px;">
       <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
-      <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+      <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
       ${contactCompanyBtn}
     </div>
   `;
