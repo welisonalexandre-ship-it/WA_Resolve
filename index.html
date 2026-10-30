@@ -334,6 +334,7 @@ function syncFromSupabase() {
         refusalFee: Number(d.taxa_recusa) || 0,
         photoUrl: d.foto_url || "",
         status: d.status || "Aguardando aprovação",
+        partsUsed: d.pecas_usadas || [],
         created: d.created_at
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -470,6 +471,10 @@ function renderOrders() {
     ordersListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>';
   } else {
     orders.slice().reverse().forEach(o => {
+      const partsUsedTags = o.partsUsed && o.partsUsed.length > 0 
+        ? `<div style="font-size:12px; color:var(--blue); margin-top:4px;">📦 Peças: ${o.partsUsed.map(p => p.nome).join(', ')}</div>` 
+        : '';
+
       ordersListHtml += `
         <div class="card-item visit-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -477,6 +482,7 @@ function renderOrders() {
               <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
               <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
               <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
+              ${partsUsedTags}
               ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
             </div>
             <div style="text-align:right;">
@@ -498,6 +504,16 @@ function renderOrders() {
   }
 
   let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
+
+  let partsCheckboxesHtml = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:6px; max-height:130px; overflow-y:auto; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">';
+  if (parts.length === 0) {
+    partsCheckboxesHtml += '<small style="color:var(--muted);">Nenhuma peça cadastrada. Cadastre na aba "Cadastro de Peças".</small>';
+  } else {
+    parts.forEach(p => {
+      partsCheckboxesHtml += `<label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" name="osPartCheck" value="${p.id}" data-nome="${encodeURIComponent(p.nome)}" data-preco="${p.preco}"> ${p.nome} (Est: ${p.estoque})</label>`;
+    });
+  }
+  partsCheckboxesHtml += '</div>';
 
   return `
     <div class="stats">
@@ -556,6 +572,10 @@ function renderOrders() {
               <input id="osRefusalFee" required type="number" step="0.01" value="30.00" placeholder="Ex: 30.00">
               <small style="font-size:11px; color:var(--muted);">Custo cobrado se recusado (análise/deslocamento).</small>
             </div>
+          </div>
+          <div class="field">
+            <label>📦 Selecionar Peças Utilizadas no Equipamento (Sem exibir preço ao cliente)</label>
+            ${partsCheckboxesHtml}
           </div>
           <div class="field">
             <label>📷 Anexar Foto do Equipamento / Defeito do Cliente</label>
@@ -676,7 +696,12 @@ function renderBalance() {
   const totalOrders = orders.length;
   const completedOrders = orders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status.includes("Aprovado"));
   const totalFaturamento = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-  const totalCustoPecas = parts.reduce((sum, p) => sum + ((Number(p.preco) || 0) * (Number(p.estoque) || 0)), 0);
+  const totalCustoPecas = orders.reduce((sum, o) => {
+    if (o.partsUsed && Array.isArray(o.partsUsed)) {
+      return sum + o.partsUsed.reduce((s, p) => s + (Number(p.preco) || 0), 0);
+    }
+    return sum;
+  }, 0);
   const lucroLiquido = totalFaturamento - totalCustoPecas;
 
   let statusRows = '';
@@ -692,7 +717,7 @@ function renderBalance() {
       <div class="stat"><span>Total de Ordens (OS)</span><strong>${totalOrders}</strong><small style="color:var(--muted);">Ordens cadastradas</small></div>
       <div class="stat"><span>Serviços Concluídos</span><strong>${completedOrders.length}</strong><small style="color:var(--muted);">Finalizados/Em andamento</small></div>
       <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">R$ ${totalFaturamento.toFixed(2)}</strong><small style="color:var(--muted);">Mão de obra + Orçamentos</small></div>
-      <div class="stat" style="border-left-color: var(--red);"><span>Custo de Peças (Estoque)</span><strong style="color:var(--red);">R$ ${totalCustoPecas.toFixed(2)}</strong><small style="color:var(--muted);">Total em componentes</small></div>
+      <div class="stat" style="border-left-color: var(--red);"><span>Custo de Peças (Usadas)</span><strong style="color:var(--red);">R$ ${totalCustoPecas.toFixed(2)}</strong><small style="color:var(--muted);">Total em componentes nos serviços</small></div>
     </div>
 
     <div class="panel">
@@ -1048,7 +1073,8 @@ function renderClientView(id) {
           price: Number(data.orcamento) || 0,
           refusalFee: Number(data.taxa_recusa) || 0,
           photoUrl: data.foto_url || "",
-          status: data.status || "Aguardando aprovação"
+          status: data.status || "Aguardando aprovação",
+          partsUsed: data.pecas_usadas || []
         };
         displayClientOrderPage(o);
       } else {
@@ -1110,6 +1136,14 @@ function displayClientOrderPage(o) {
       ${photoHtml}
 
       <div style="border-top:1px solid var(--line); padding-top:16px;">
+        ${o.partsUsed && o.partsUsed.length > 0 ? `
+          <div style="margin-bottom:14px; background:#f8fafc; border-radius:10px; padding:12px; border:1px solid var(--line);">
+            <p style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">🛠️ Peças / Componentes Utilizados no Reparo:</p>
+            <ul style="margin-left:18px; font-size:13px; color:#334155;">
+              ${o.partsUsed.map(pu => `<li>${pu.nome}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
         <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${o.name}</p>
         <p style="margin-bottom:8px;"><strong>Defeito Relatado:</strong> ${o.problem || 'Não especificado'}</p>
         <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico (O que precisa):</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
@@ -1283,6 +1317,21 @@ async function saveOrder(e) {
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
   const status = "Aguardando aprovação";
+  
+  const selectedPartCheckboxes = document.querySelectorAll('input[name="osPartCheck"]:checked');
+  let partsUsed = [];
+  selectedPartCheckboxes.forEach(chk => {
+    const pId = chk.value;
+    const pNome = decodeURIComponent(chk.getAttribute('data-nome'));
+    const pPreco = parseFloat(chk.getAttribute('data-preco')) || 0;
+    partsUsed.push({ id: pId, nome: pNome, preco: pPreco });
+    
+    const partObj = parts.find(item => String(item.id) === String(pId));
+    if (partObj && partObj.estoque > 0) {
+      partObj.estoque -= 1;
+    }
+  });
+  localStorage.setItem("wa_parts", JSON.stringify(parts));
 
   let cId = null;
 
@@ -1307,7 +1356,8 @@ async function saveOrder(e) {
         orcamento: price,
         taxa_recusa: refusalFee,
         foto_url: photoUrl,
-        status: status
+        status: status,
+        pecas_usadas: partsUsed
       }]).select();
 
       if (osRes.data && osRes.data[0]) {
@@ -1315,7 +1365,7 @@ async function saveOrder(e) {
         orders.push({
           id: createdId,
           dbId: osRes.data[0].id,
-          name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status,
+          name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed,
           created: new Date().toISOString()
         });
         localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -1329,7 +1379,7 @@ async function saveOrder(e) {
   }
 
   const tempId = "WR-" + Math.floor(1000 + Math.random() * 9000);
-  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, created: new Date().toISOString() });
+  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, created: new Date().toISOString() });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   alert("Ordem " + tempId + " cadastrada com sucesso!");
   renderDashboard();
