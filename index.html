@@ -36,7 +36,7 @@
     button:active { transform: scale(0.98); }
     .primary { background: #1672d3; color: #fff; }
     .secondary { background: #eaf0f8; color: var(--navy); }
-    .gold { background: var(--gold); color: var(--navy); }
+    .gold { background: #f3c44e; color: var(--navy); }
     .whatsapp-btn { background: #13a765; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
     .danger-btn { background: #fff0f0; border: 1px solid #ffdddd; color: #c63b48; }
     
@@ -1505,7 +1505,7 @@ async function saveVisit(e) {
     dbId: vDbId,
     cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, observacoes, status: "Agendada"
   };
-  visits.push(newVisit);
+    visits.push(newVisit);
   localStorage.setItem("wa_visits", JSON.stringify(visits));
   alert("Visita agendada com sucesso!");
   renderDashboard();
