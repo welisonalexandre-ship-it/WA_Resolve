@@ -54,7 +54,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .brand { display: flex; align-items: center; gap: 14px; }
-    .brand-logo-img { height: 46px; max-width: 112px; object-fit: contain; }
+    .brand-logo-img { height: 50px; width: auto; max-width: none; object-fit: contain; }
     .brand-info h1 { font-size: 17px; font-weight: 800; letter-spacing: 0.3px; }
     .brand-info p { font-size: 11px; color: #c4d2e5; font-weight: 500; margin-top: 1px; }
     
@@ -381,7 +381,7 @@ function setTab(tab) {
 }
 
 function renderLockScreen() {
-  const brandDisplay = '<img src="topo.png" alt="WA Resolve" style="height: 48px; width: auto; max-width: 260px; object-fit: contain;">';
+  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;">';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
@@ -413,7 +413,7 @@ function renderDashboard() {
     ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
     : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>';
 
-  const brandDisplay = '<img src="topo.png" alt="WA Resolve" style="height: 48px; width: auto; max-width: 260px; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
+  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
 
   const header = `
     <header class="top">
@@ -1248,7 +1248,7 @@ function openKeyModal() {
       
       <div class="field">
         <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
-        <input id="modalLogoInput" placeholder="Ex: topo.png ou URL da logo" value="${companyLogoUrl}">
+        <input id="modalLogoInput" placeholder="Ex: togo.png ou URL da logo" value="${companyLogoUrl}">
         <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
       </div>
 
