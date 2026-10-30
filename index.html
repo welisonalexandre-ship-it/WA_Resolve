@@ -255,7 +255,7 @@ let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
 let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
 let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
 let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
-let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
+let parts = JSON.parse(localStorage.getItem("wa_parts") || "[{'id':1,'nome':'Capacitor 2,5uF','preco':6.00,'estoque':10},{'id':2,'nome':'Fusível Térmico','preco':3.00,'estoque':15},{'id':3,'nome':'Malha Teclado','preco':30.00,'estoque':5},{'id':4,'nome':'Relé Gelágua','preco':10.00,'estoque':8},{'id':5,'nome':'Magnetron','preco':85.00,'estoque':3}]");
 
 function formatarDataBR(dataIso) {
   if (!dataIso) return "";
@@ -327,6 +327,7 @@ function syncFromSupabase() {
         name: d.clientes ? d.clientes.nome : "Cliente",
         phone: d.clientes ? d.clientes.telefone : "",
         appliance: d.titulo_servico || "Aparelho",
+        partsUsed: d.pecas_usadas || [],
         brand: d.marca || "",
         problem: d.defeito || d.descricao || "",
         diagnosis: d.diagnostico || "",
@@ -334,7 +335,6 @@ function syncFromSupabase() {
         refusalFee: Number(d.taxa_recusa) || 0,
         photoUrl: d.foto_url || "",
         status: d.status || "Aguardando aprovação",
-        partsUsed: d.pecas_usadas || [],
         created: d.created_at
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -471,10 +471,6 @@ function renderOrders() {
     ordersListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>';
   } else {
     orders.slice().reverse().forEach(o => {
-      const partsUsedTags = o.partsUsed && o.partsUsed.length > 0 
-        ? `<div style="font-size:12px; color:var(--blue); margin-top:4px;">📦 Peças: ${o.partsUsed.map(p => p.nome).join(', ')}</div>` 
-        : '';
-
       ordersListHtml += `
         <div class="card-item visit-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -482,7 +478,6 @@ function renderOrders() {
               <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
               <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
               <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
-              ${partsUsedTags}
               ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
             </div>
             <div style="text-align:right;">
@@ -503,17 +498,23 @@ function renderOrders() {
     });
   }
 
-  let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
+  let partsPickerHtml = `
+    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:9px; padding:12px;">
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <select id="selectPartToAdd" style="flex:1; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; background:#fff; font-size:13px;">
+          <option value="">Selecione uma peça do estoque...</option>
+          ${parts.map(p => `<option value="${p.id}" data-nome="${encodeURIComponent(p.nome)}" data-preco="${p.preco}" data-estoque="${p.estoque}">${p.nome} (Est: ${p.estoque} - R$ ${Number(p.preco).toFixed(2)})</option>`).join('')}
+        </select>
+        <button type="button" class="secondary" onclick="addPartToOrder()" style="padding:8px 14px; font-size:13px; background:#1672d3; color:#fff;">＋ Adicionar</button>
+      </div>
+      <div id="selectedPartsContainer" style="display:grid; gap:6px; min-height:36px;">
+        <small style="color:var(--muted); font-style:italic;">Nenhuma peça adicionada a esta ordem ainda.</small>
+      </div>
+      <input type="hidden" id="osPartsJson" value="[]">
+    </div>
+  `;
 
-  let partsCheckboxesHtml = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:6px; max-height:130px; overflow-y:auto; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px;">';
-  if (parts.length === 0) {
-    partsCheckboxesHtml += '<small style="color:var(--muted);">Nenhuma peça cadastrada. Cadastre na aba "Cadastro de Peças".</small>';
-  } else {
-    parts.forEach(p => {
-      partsCheckboxesHtml += `<label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" name="osPartCheck" value="${p.id}" data-nome="${encodeURIComponent(p.nome)}" data-preco="${p.preco}"> ${p.nome} (Est: ${p.estoque})</label>`;
-    });
-  }
-  partsCheckboxesHtml += '</div>';
+  let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
 
   return `
     <div class="stats">
@@ -575,7 +576,7 @@ function renderOrders() {
           </div>
           <div class="field">
             <label>📦 Selecionar Peças Utilizadas no Equipamento (Sem exibir preço ao cliente)</label>
-            ${partsCheckboxesHtml}
+            ${partsPickerHtml}
           </div>
           <div class="field">
             <label>📷 Anexar Foto do Equipamento / Defeito do Cliente</label>
@@ -1305,9 +1306,85 @@ function recusarColetaCliente(id, dbId) {
   }
 }
 
+
+let currentOsParts = [];
+
+function renderSelectedPartsUI() {
+  const container = document.getElementById("selectedPartsContainer");
+  const hiddenInput = document.getElementById("osPartsJson");
+  if (!container) return;
+
+  if (currentOsParts.length === 0) {
+    container.innerHTML = '<small style="color:var(--muted); font-style:italic;">Nenhuma peça adicionada a esta ordem ainda.</small>';
+    if (hiddenInput) hiddenInput.value = "[]";
+    return;
+  }
+
+  let html = '';
+  currentOsParts.forEach((p, idx) => {
+    html += `
+      <div style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:13px;">
+        <div>
+          <strong>${p.nome}</strong> <small style="color:var(--muted);">· R$ ${Number(p.preco).toFixed(2)} un.</small>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span>Qtd: <strong>${p.qtd || 1}</strong></span>
+          <button type="button" class="danger-btn" style="padding:2px 8px; font-size:11px;" onclick="removePartFromOrder(${idx})">✕ Remover</button>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+  if (hiddenInput) hiddenInput.value = JSON.stringify(currentOsParts);
+}
+
+function addPartToOrder() {
+  const sel = document.getElementById("selectPartToAdd");
+  if (!sel || !sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  const id = sel.value;
+  const nome = decodeURIComponent(opt.getAttribute("data-nome"));
+  const preco = parseFloat(opt.getAttribute("data-preco")) || 0;
+  const estoque = parseInt(opt.getAttribute("data-estoque")) || 0;
+
+  const existing = currentOsParts.find(item => String(item.id) === String(id));
+  if (existing) {
+    if (existing.qtd < estoque) {
+      existing.qtd += 1;
+    } else {
+      alert("Quantidade máxima disponível em estoque atingida!");
+      return;
+    }
+  } else {
+    if (estoque <= 0) {
+      alert("Peça sem estoque disponível!");
+      return;
+    }
+    currentOsParts.push({ id, nome, preco, qtd: 1 });
+  }
+  sel.value = "";
+  renderSelectedPartsUI();
+}
+
+function removePartFromOrder(idx) {
+  currentOsParts.splice(idx, 1);
+  renderSelectedPartsUI();
+}
+
+
 async function saveOrder(e) {
   e.preventDefault();
   const name = document.getElementById("osName").value.trim();
+  
+  let partsUsed = [...currentOsParts];
+  partsUsed.forEach(pu => {
+    const partObj = parts.find(item => String(item.id) === String(pu.id));
+    if (partObj) {
+      partObj.estoque = Math.max(0, (partObj.estoque || 0) - (pu.qtd || 1));
+    }
+  });
+  localStorage.setItem("wa_parts", JSON.stringify(parts));
+  currentOsParts = [];
   const phone = document.getElementById("osPhone").value.trim();
   const appliance = document.getElementById("osAppliance").value.trim();
   const brand = document.getElementById("osBrand").value.trim();
@@ -1317,21 +1394,6 @@ async function saveOrder(e) {
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
   const status = "Aguardando aprovação";
-  
-  const selectedPartCheckboxes = document.querySelectorAll('input[name="osPartCheck"]:checked');
-  let partsUsed = [];
-  selectedPartCheckboxes.forEach(chk => {
-    const pId = chk.value;
-    const pNome = decodeURIComponent(chk.getAttribute('data-nome'));
-    const pPreco = parseFloat(chk.getAttribute('data-preco')) || 0;
-    partsUsed.push({ id: pId, nome: pNome, preco: pPreco });
-    
-    const partObj = parts.find(item => String(item.id) === String(pId));
-    if (partObj && partObj.estoque > 0) {
-      partObj.estoque -= 1;
-    }
-  });
-  localStorage.setItem("wa_parts", JSON.stringify(parts));
 
   let cId = null;
 
