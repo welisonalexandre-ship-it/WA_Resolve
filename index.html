@@ -272,7 +272,11 @@ function formatarDataBR(dataIso) {
 
 window.addEventListener("DOMContentLoaded", () => {
   try {
-    const params = new URLSearchParams(window.location.search);
+    let searchStr = window.location.search;
+    if (searchStr.includes("~and~")) {
+      searchStr = "?" + searchStr.slice(1).replace(/~and~/g, "&");
+    }
+    const params = new URLSearchParams(searchStr);
     const clienteId = params.get("cliente");
     const visitaId = params.get("visita");
 
@@ -889,11 +893,22 @@ function renderClientView(id) {
         };
         displayClientOrderPage(o);
       } else {
-        document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+        // Fallback: search in local orders if Supabase doesn't return it
+        const foundLocal = orders.find(item => String(item.id) === String(id) || String(item.id).replace(/\D/g, "") === cleanId);
+        if (foundLocal) {
+          displayClientOrderPage(foundLocal);
+        } else {
+          document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+        }
       }
     });
   } else {
-    document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+    const foundLocal = orders.find(item => String(item.id) === String(id) || String(item.id).replace(/\D/g, "") === cleanId);
+    if (foundLocal) {
+      displayClientOrderPage(foundLocal);
+    } else {
+      document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+    }
   }
 }
 
