@@ -10,12 +10,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#102b50">
 
-  <!-- Ícone do App na tela inicial do iPhone -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23102b50'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' fill='%23f3c44e' font-family='Arial, sans-serif' font-weight='900' font-size='44'>WA</text></svg>">
-
-  <!-- Manifesto embutido -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"WA Resolve | Central de Serviços","short_name":"WA Resolve","start_url":"./","display":"standalone","background_color":"#102b50","theme_color":"#102b50"}'>
-  <!-- === FIM DA CONFIGURAÇÃO IPHONE === -->
 
   <title>WA Resolve | Central de Serviços</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -177,7 +173,8 @@
     }
     .field textarea { min-height: 58px; }
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media(max-width: 550px) { .two { grid-template-columns: 1fr; } }
+    .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media(max-width: 650px) { .two, .three { grid-template-columns: 1fr; } }
     
     .card-item {
       background: #fff;
@@ -208,7 +205,7 @@
       display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
     }
     .modal-box {
-      background: #fff; border-radius: 16px; max-width: 520px; width: 100%; padding: 24px;
+      background: #fff; border-radius: 16px; max-width: 580px; width: 100%; padding: 24px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;
     }
     .lock-screen {
@@ -248,11 +245,20 @@
     .table-custom th, .table-custom td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; }
     .table-custom th { background: #102b50; color: #fff; font-weight: 700; }
     .table-custom tr:nth-child(even) { background: #f8fafc; }
+
+    /* Folha de Impressão */
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; background: #fff; color: #000; padding: 20px; font-size: 13px; }
+      .no-print { display: none !important; }
+    }
   </style>
 </head>
 <body>
 
 <div id="app"></div>
+<div id="printArea" style="display:none;"></div>
 
 <script>
 const SUPABASE_URL = "https://xuletvulgzdnuukynlhs.supabase.co";
@@ -268,19 +274,22 @@ try {
 }
 
 let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
+let companyPixKey = localStorage.getItem("wa_company_pix") || "";
 let companyLogoUrl = localStorage.getItem("wa_company_logo") || "";
+let companyAddress = localStorage.getItem("wa_company_address") || "Mossoró - RN";
 let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
 let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
 let activeTab = localStorage.getItem("wa_active_tab") || "orders";
 let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
 let historySearchQuery = localStorage.getItem("wa_history_search") || "";
+let balanceFilterPeriod = localStorage.getItem("wa_balance_period") || "all";
 
 let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
 let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
 let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
 
-// Normaliza números antigos de OS para não exibir mais "WR-LOCAL-..."
+// Limpa identificadores antigos "LOCAL" para números curtos limpos
 orders.forEach((o, idx) => {
   if (o.id && String(o.id).includes("LOCAL")) {
     o.id = "WR-" + (100 + idx + 1);
@@ -376,10 +385,14 @@ function syncFromSupabase() {
         appliance: d.titulo_servico || "Aparelho",
         partsUsed: d.pecas_usadas || [],
         brand: d.marca || "",
+        serialNumber: d.numero_serie || "",
+        sealNumber: d.numero_lacre || "",
         problem: d.defeito || d.descricao || "",
         diagnosis: d.diagnostico || "",
         price: Number(d.orcamento) || 0,
         refusalFee: Number(d.taxa_recusa) || 0,
+        entryFee: Number(d.valor_entrada) || 0,
+        paymentMethod: d.forma_pagamento || "Pix",
         photoUrl: d.foto_url || "",
         status: d.status || "Aguardando aprovação",
         created: d.created_at,
@@ -467,7 +480,7 @@ function renderDashboard() {
 
   const companyBadge = companyWhatsApp 
     ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
-    : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="editCompanyWhatsApp()">⚠️ Configurar Meu WhatsApp</button>';
+    : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="openKeyModal()">⚠️ Configurar WhatsApp/PIX</button>';
 
   const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
 
@@ -479,7 +492,7 @@ function renderDashboard() {
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         ${companyBadge}
         ${sbStatus}
-        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">🎨 Logo / Config</button>
+        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">⚙️ Config & PIX</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
       </div>
@@ -490,7 +503,7 @@ function renderDashboard() {
       <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
       <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
       <button class="nav-tab ${activeTab==='parts'?'active':''}" onclick="setTab('parts')">📦 Cadastro de Peças</button>
-      <button class="nav-tab ${activeTab==='balance'?'active':''}" onclick="setTab('balance')">📊 Balanço Mensal</button>
+      <button class="nav-tab ${activeTab==='balance'?'active':''}" onclick="setTab('balance')">📊 Balanço Financeiro</button>
     </div>
   `;
 
@@ -523,24 +536,34 @@ function renderOrders() {
     ordersListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>';
   } else {
     orders.slice().reverse().forEach(o => {
+      const entryFee = Number(o.entryFee || 0);
+      const price = Number(o.price || 0);
+      const remaining = Math.max(0, price - entryFee);
+
       ordersListHtml += `
         <div class="card-item visit-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
               <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
-              <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
+              <div style="font-size:13px; color:#334155; margin-top:2px;">
+                ${o.appliance} ${o.brand ? '· ' + o.brand : ''}
+                ${o.serialNumber ? ` | <span style="color:#64748b;">SN: ${o.serialNumber}</span>` : ''}
+                ${o.sealNumber ? ` | <span style="color:var(--blue); font-weight:700;">Lacre: ${o.sealNumber}</span>` : ''}
+              </div>
               <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
+              ${entryFee > 0 ? `<div style="font-size:11px; color:var(--green); font-weight:600;">Sinal Pago: ${formatBRL(entryFee)} | Restante: ${formatBRL(remaining)} (${o.paymentMethod || 'Pix'})</div>` : ''}
               ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
               ${o.data_conclusao ? `<div style="font-size:11px; color:var(--green); margin-top:2px;">🛡️ Concluído em: ${formatarDataBR(o.data_conclusao)} (${o.dias_garantia || 90}d garantia)</div>` : ''}
             </div>
             <div style="text-align:right;">
-              <strong style="color:var(--navy);">R$ ${Number(o.price||0).toFixed(2)}</strong>
+              <strong style="color:var(--navy); font-size:16px;">${formatBRL(price)}</strong>
               <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
             </div>
           </div>
           ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
           <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento no WhatsApp</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar no WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px; background:#eff6ff; color:#175ba4;" onclick="printOrderSheet('${o.id}')">🖨️ Comprovante / Termo</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Foto</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
@@ -609,6 +632,16 @@ function renderOrders() {
               <input id="osBrand" placeholder="Ex.: Brastemp 400L">
             </div>
           </div>
+          <div class="two">
+            <div class="field">
+              <label>Número de Série / IMEI (Identificação)</label>
+              <input id="osSerial" placeholder="Ex.: SN-984210492">
+            </div>
+            <div class="field">
+              <label>Nº do Lacre de Garantia (Selo Casca de Ovo)</label>
+              <input id="osSeal" placeholder="Ex.: LACRE-0412">
+            </div>
+          </div>
           <div class="field">
             <label>Defeito Relatado</label>
             <textarea id="osProblem" rows="2" placeholder="O que o cliente informou?"></textarea>
@@ -617,25 +650,35 @@ function renderOrders() {
             <label>Diagnóstico Técnico / O que precisa</label>
             <textarea id="osDiagnosis" rows="2" placeholder="Peças, defeito real e serviços necessários"></textarea>
           </div>
-          <div class="two">
+          <div class="three">
             <div class="field">
-              <label>Valor do Orçamento (R$) *</label>
+              <label>Valor Orçamento (R$) *</label>
               <input id="osPrice" required type="number" step="0.01" placeholder="0.00">
             </div>
+            <div class="field">
+              <label>Valor de Entrada / Sinal (R$)</label>
+              <input id="osEntryFee" type="number" step="0.01" value="0.00" placeholder="0.00">
+            </div>
+            <div class="field">
+              <label>Forma de Pagamento</label>
+              <select id="osPaymentMethod">
+                <option value="Pix">Pix</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Cartão de Débito">Cartão de Débito</option>
+                <option value="A Combinar">A Combinar</option>
+              </select>
+            </div>
+          </div>
+          <div class="two">
             <div class="field">
               <label>Taxa por Não Aprovação (R$) *</label>
               <input id="osRefusalFee" required type="number" step="0.01" value="30.00" placeholder="Ex: 30.00">
               <small style="font-size:11px; color:var(--muted);">Custo cobrado se recusado (análise/deslocamento).</small>
             </div>
-          </div>
-          <div class="two">
             <div class="field">
-              <label>Prazo Padrão de Garantia (Dias)</label>
+              <label>Prazo de Garantia (Dias)</label>
               <input id="osWarrantyDays" type="number" value="90" min="0" placeholder="90">
-            </div>
-            <div class="field">
-              <label>Data de Início da Garantia (Opcional)</label>
-              <input id="osWarrantyStart" type="date">
             </div>
           </div>
           <div class="field">
@@ -685,6 +728,7 @@ function renderHistory() {
     return (o.name && o.name.toLowerCase().includes(q)) ||
            (o.appliance && o.appliance.toLowerCase().includes(q)) ||
            (o.id && o.id.toLowerCase().includes(q)) ||
+           (o.sealNumber && o.sealNumber.toLowerCase().includes(q)) ||
            (o.brand && o.brand.toLowerCase().includes(q));
   });
 
@@ -710,7 +754,6 @@ function renderHistory() {
 
       if (dataBaseStr && diasGarantia > 0) {
         const [ano, mes, dia] = dataBaseStr.split('-');
-        const dtInicio = new Date(ano, mes - 1, dia);
         const dtFim = new Date(ano, mes - 1, dia);
         dtFim.setDate(dtFim.getDate() + diasGarantia);
 
@@ -729,7 +772,10 @@ function renderHistory() {
 
       rowsHtml += `
         <tr>
-          <td><strong>${o.id}</strong></td>
+          <td>
+            <strong>${o.id}</strong>
+            ${o.sealNumber ? `<br><small style="color:var(--blue);">Lacre: ${o.sealNumber}</small>` : ''}
+          </td>
           <td>
             <strong>${o.name}</strong><br>
             <small style="color:var(--muted);">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</small>
@@ -778,14 +824,14 @@ function renderHistory() {
     <div class="panel">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
         <h2 style="margin-bottom:0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;margin-right:8px;">🛡️</span> Histórico de Serviços & Garantias</h2>
-        <input class="visit-search" type="text" placeholder="⌕ Buscar cliente, OS ou aparelho..." value="${historySearchQuery.replace(/"/g, '&quot;')}" oninput="filterHistory(this.value)">
+        <input class="visit-search" type="text" placeholder="⌕ Buscar cliente, OS, aparelho ou lacre..." value="${historySearchQuery.replace(/"/g, '&quot;')}" oninput="filterHistory(this.value)">
       </div>
 
       <div style="overflow-x:auto;">
         <table class="table-custom">
           <thead>
             <tr>
-              <th>OS</th>
+              <th>OS / Lacre</th>
               <th>Cliente / Aparelho</th>
               <th>Data Conclusão</th>
               <th>Vigência da Garantia</th>
@@ -901,10 +947,29 @@ function deletePart(id) {
 }
 
 function renderBalance() {
-  const totalOrders = orders.length;
-  const completedOrders = orders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status.includes("Aprovado"));
-  const totalFaturamento = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-  const totalCustoPecas = orders.reduce((sum, o) => {
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+
+  const filteredOrders = orders.filter(o => {
+    if (balanceFilterPeriod === "all") return true;
+    const dStr = o.data_conclusao || o.created;
+    if (!dStr) return false;
+    const d = new Date(dStr);
+    if (balanceFilterPeriod === "current_month") {
+      return d.getFullYear() === curYear && d.getMonth() === curMonth;
+    } else if (balanceFilterPeriod === "last_month") {
+      const prevMonthDate = new Date(curYear, curMonth - 1, 1);
+      return d.getFullYear() === prevMonthDate.getFullYear() && d.getMonth() === prevMonthDate.getMonth();
+    }
+    return true;
+  });
+
+  const totalOrders = filteredOrders.length;
+  const completedOrders = filteredOrders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue");
+  const totalFaturamento = filteredOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+  const totalSinais = filteredOrders.reduce((sum, o) => sum + (Number(o.entryFee) || 0), 0);
+  const totalCustoPecas = filteredOrders.reduce((sum, o) => {
     if (o.partsUsed && Array.isArray(o.partsUsed)) {
       return sum + o.partsUsed.reduce((s, p) => s + ((Number(p.preco) || 0) * (Number(p.qtd) || 1)), 0);
     }
@@ -915,25 +980,35 @@ function renderBalance() {
   let statusRows = '';
   const statuses = ["Aguardando aprovação", "Em conserto", "Pronto para retirada", "Concluído", "Não aprovado"];
   statuses.forEach(st => {
-    const count = orders.filter(o => o.status === st).length;
+    const count = filteredOrders.filter(o => o.status === st).length;
     const pct = totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(1) : "0.0";
     statusRows += `<tr><td>${st}</td><td>${count}</td><td>${pct}%</td></tr>`;
   });
 
   return `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+      <h2 style="color:var(--navy); font-size:20px;">📊 Balanço Financeiro da WA Resolve</h2>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label style="font-size:13px; font-weight:700; color:#42536b;">Filtrar Período:</label>
+        <select onchange="changeBalancePeriod(this.value)" style="border:1px solid #d7e0eb; border-radius:8px; padding:6px 12px; font-size:14px; background:#fff;">
+          <option value="all" ${balanceFilterPeriod==='all'?'selected':''}>Todo o Período</option>
+          <option value="current_month" ${balanceFilterPeriod==='current_month'?'selected':''}>Mês Atual</option>
+          <option value="last_month" ${balanceFilterPeriod==='last_month'?'selected':''}>Mês Anterior</option>
+        </select>
+      </div>
+    </div>
+
     <div class="stats">
-      <div class="stat"><span>Total de Ordens (OS)</span><strong>${totalOrders}</strong><small style="color:var(--muted);">Ordens cadastradas</small></div>
-      <div class="stat"><span>Serviços Concluídos</span><strong>${completedOrders.length}</strong><small style="color:var(--muted);">Finalizados/Em andamento</small></div>
-      <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong><small style="color:var(--muted);">Mão de obra + Orçamentos</small></div>
-      <div class="stat" style="border-left-color: var(--red);"><span>Custo de Peças (Estoque)</span><strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong><small style="color:var(--muted);">Total em componentes</small></div>
+      <div class="stat"><span>Ordens no Período</span><strong>${totalOrders}</strong><small style="color:var(--muted);">${completedOrders.length} concluídas</small></div>
+      <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong><small style="color:var(--muted);">Sinais recebidos: ${formatBRL(totalSinais)}</small></div>
+      <div class="stat" style="border-left-color: var(--red);"><span>Custo Peças (Estoque)</span><strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong><small style="color:var(--muted);">Gasto em componentes</small></div>
+      <div class="stat" style="border-left-color: #10b981;"><span>Lucro Líquido Real</span><strong style="color:#10b981;">${formatBRL(lucroLiquido)}</strong><small style="color:var(--muted);">Margem após peças</small></div>
     </div>
 
     <div class="panel">
-      <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📊</span> Balanço Financeiro e Operacional Mensal</h2>
-      
-      <div class="two" style="margin-top:20px;">
+      <div class="two" style="margin-top:10px;">
         <div>
-          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">📋 Status das Ordens de Serviço</h3>
+          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">📋 Distribuição de Serviços</h3>
           <table class="table-custom">
             <thead>
               <tr><th>Status</th><th>Qtd de OS</th><th>% do Total</th></tr>
@@ -945,21 +1020,27 @@ function renderBalance() {
         </div>
         
         <div>
-          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">💰 Composição Financeira Geral</h3>
+          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">💰 Demonstrativo Financeiro</h3>
           <table class="table-custom">
             <thead>
-              <tr><th>Componente Financeiro</th><th>Valor</th><th>% do Faturamento</th></tr>
+              <tr><th>Componente</th><th>Valor</th><th>% Faturamento</th></tr>
             </thead>
             <tbody>
-              <tr><td>Faturamento Total</td><td>${formatBRL(totalFaturamento)}</td><td>100,0%</td></tr>
-              <tr><td>Custo de Peças</td><td>${formatBRL(totalCustoPecas)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
-              <tr><td><strong>Lucro Líquido Estimado</strong></td><td><strong style="color:var(--green);">${formatBRL(lucroLiquido)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
+              <tr><td>Faturamento Total Bruto</td><td>${formatBRL(totalFaturamento)}</td><td>100,0%</td></tr>
+              <tr><td>Custo Total de Peças</td><td>${formatBRL(totalCustoPecas)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
+              <tr><td><strong>Lucro Líquido do Técnico</strong></td><td><strong style="color:var(--green);">${formatBRL(lucroLiquido)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
   `;
+}
+
+function changeBalancePeriod(period) {
+  balanceFilterPeriod = period;
+  localStorage.setItem("wa_balance_period", period);
+  renderDashboard();
 }
 
 function handleImageUpload(event) {
@@ -983,14 +1064,17 @@ function renderClients() {
     clientsListHtml = '<p style="color:var(--muted); text-align:center;">Nenhum cliente cadastrado ainda.</p>';
   } else {
     clients.slice().reverse().forEach(c => {
+      const clientOrdersCount = orders.filter(o => o.name && c.nome && o.name.toLowerCase() === c.nome.toLowerCase()).length;
+
       clientsListHtml += `
         <div class="card-item visit-card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <div style="flex:1; min-width:185px;">
             <strong style="font-size:15px; color:var(--navy);">${c.nome}</strong>
-            <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'}</p>
+            <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'} · <span style="color:var(--blue); font-weight:700;">${clientOrdersCount} serviço(s) na WA</span></p>
             <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="viewClientHistory('${encodeURIComponent(c.nome)}')">📋 Histórico</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
             <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
@@ -1030,6 +1114,44 @@ function renderClients() {
       </div>
     </div>
   `;
+}
+
+function viewClientHistory(clientNameEncoded) {
+  const nome = decodeURIComponent(clientNameEncoded);
+  const clientOrders = orders.filter(o => o.name && o.name.toLowerCase() === nome.toLowerCase());
+
+  let listHtml = '';
+  if (clientOrders.length === 0) {
+    listHtml = '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhuma ordem registrada para este cliente.</p>';
+  } else {
+    clientOrders.forEach(o => {
+      listHtml += `
+        <div style="border-bottom:1px solid #e2e8f0; padding:10px 0;">
+          <div style="display:flex; justify-content:space-between;">
+            <strong>${o.id} - ${o.appliance} (${o.brand || ''})</strong>
+            <span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span>
+          </div>
+          <p style="font-size:12px; color:#475569; margin:4px 0;">Defeito: ${o.problem || 'Não informado'} | Valor: ${formatBRL(o.price)}</p>
+          <small style="color:var(--muted);">Garantia: ${o.dias_garantia || 90} dias (Conclusão: ${formatarDataBR(o.data_conclusao)})</small>
+        </div>
+      `;
+    });
+  }
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:8px;">📋 Histórico Completo: ${nome}</h3>
+      <div style="max-height:360px; overflow-y:auto;">
+        ${listHtml}
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button class="primary" onclick="this.closest('.modal').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 }
 
 function renderVisits() {
@@ -1269,7 +1391,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
 ${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
-👉 *Clique no link abaixo para ver a foto do equipamento, detalhes e aprovar online:*
+👉 *Clique no link abaixo para ver a foto do equipamento, detalhes, pagar sinal via PIX e aprovar online:*
 ${urlOs}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
@@ -1325,10 +1447,14 @@ function renderClientView(id) {
       phone: data.clientes ? data.clientes.telefone : "",
       appliance: data.titulo_servico || "Aparelho",
       brand: data.marca || "",
+      serialNumber: data.numero_serie || "",
+      sealNumber: data.numero_lacre || "",
       problem: data.defeito || data.descricao || "",
       diagnosis: data.diagnostico || "",
       price: Number(data.orcamento) || 0,
       refusalFee: Number(data.taxa_recusa) || 0,
+      entryFee: Number(data.valor_entrada) || 0,
+      paymentMethod: data.forma_pagamento || "Pix",
       photoUrl: data.foto_url || "",
       status: data.status || "Aguardando aprovação",
       partsUsed: data.pecas_usadas || []
@@ -1348,7 +1474,7 @@ function displayClientOrderPage(o) {
 
   const photoHtml = o.photoUrl ? `
     <div style="margin:16px 0; text-align:center; background:#f8fafc; border-radius:12px; padding:12px; border:1px solid var(--line);">
-      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">📷 Foto do Equipamento / Defeito do Cliente</p>
+      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">📷 Foto do Equipamento / Defeito</p>
       <img src="${o.photoUrl}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
     </div>` : '';
 
@@ -1357,17 +1483,29 @@ function displayClientOrderPage(o) {
       <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
     </div>` : '';
 
+  const pixBlockHtml = companyPixKey ? `
+    <div style="margin-top:16px; background:#f0fdf4; border:1px dashed #16a34a; border-radius:10px; padding:14px; text-align:center;">
+      <p style="font-size:13px; font-weight:700; color:#166534; margin-bottom:6px;">💳 Pagar Sinal ou Valor via PIX</p>
+      <div style="background:#fff; border:1px solid #bbf7d0; border-radius:6px; padding:8px; font-family:monospace; font-size:14px; color:#14532d; word-break:break-all; margin-bottom:8px;">
+        ${companyPixKey}
+      </div>
+      <button class="primary" style="font-size:12px; padding:6px 14px; background:#16a34a;" onclick="copyPixDirect('${companyPixKey}')">📋 Copiar Chave PIX</button>
+    </div>
+  ` : '';
+
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
   const actionsHtml = isApproved ? `
     <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
       <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Orçamento Aprovado - Conserto Iniciado!</h3>
       <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipe técnica.</p>
     </div>
+    ${pixBlockHtml}
     ${contactCompanyBtn}
   ` : `
     <div style="margin-top:20px; display:grid; gap:10px;">
       <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
       <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+      ${pixBlockHtml}
       ${contactCompanyBtn}
     </div>
   `;
@@ -1385,6 +1523,7 @@ function displayClientOrderPage(o) {
         <span class="tag ${String(o.status).replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">Status: ${o.status}</span>
         <h2 style="color:var(--navy); margin-top:10px;">${o.appliance}</h2>
         <p style="color:var(--muted);">${o.brand ? o.brand + ' · ' : ''}Ordem ${o.id}</p>
+        ${o.sealNumber ? `<p style="color:var(--blue); font-size:12px; font-weight:700; margin-top:4px;">🛡️ Selo de Garantia: ${o.sealNumber}</p>` : ''}
       </div>
       
       ${photoHtml}
@@ -1400,14 +1539,27 @@ function displayClientOrderPage(o) {
         ` : ''}
         <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${o.name}</p>
         <p style="margin-bottom:8px;"><strong>Defeito Relatado:</strong> ${o.problem || 'Não especificado'}</p>
-        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico (O que precisa):</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
-        <p style="margin-bottom:8px; font-size:18px;"><strong>Valor do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">R$ ${Number(o.price||0).toFixed(2)}</span></p>
+        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico:</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
+        <p style="margin-bottom:8px; font-size:18px;"><strong>Valor Total do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">${formatBRL(o.price)}</span></p>
+        ${o.entryFee > 0 ? `<p style="margin-bottom:8px; font-size:14px; color:#166534;"><strong>Sinal Pago:</strong> ${formatBRL(o.entryFee)} | <strong>Saldo Restante na Entrega:</strong> ${formatBRL(o.price - o.entryFee)}</p>` : ''}
         ${o.refusalFee > 0 ? `<p style="font-size:12px; color:var(--red);">* Taxa de análise/deslocamento caso o orçamento não seja aprovado: R$ ${Number(o.refusalFee).toFixed(2)}</p>` : ''}
       </div>
 
       ${actionsHtml}
     </div>
   `;
+}
+
+function copyPixDirect(key) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(key).then(() => {
+      alert("✅ Chave PIX copiada para a área de transferência!");
+    }).catch(() => {
+      prompt("Copie a chave PIX abaixo:", key);
+    });
+  } else {
+    prompt("Copie a chave PIX abaixo:", key);
+  }
 }
 
 async function clientActionOrder(id, newStatus, dbId) {
@@ -1629,13 +1781,16 @@ async function saveOrder(e) {
   const phone = document.getElementById("osPhone").value.trim();
   const appliance = document.getElementById("osAppliance").value.trim();
   const brand = document.getElementById("osBrand").value.trim();
+  const serialNumber = document.getElementById("osSerial") ? document.getElementById("osSerial").value.trim() : "";
+  const sealNumber = document.getElementById("osSeal") ? document.getElementById("osSeal").value.trim() : "";
   const problem = document.getElementById("osProblem").value.trim();
   const diagnosis = document.getElementById("osDiagnosis").value.trim();
   const price = parseFloat(document.getElementById("osPrice").value) || 0;
+  const entryFee = parseFloat(document.getElementById("osEntryFee").value) || 0;
+  const paymentMethod = document.getElementById("osPaymentMethod").value;
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
   const warrantyDays = parseInt(document.getElementById("osWarrantyDays").value) || 90;
-  const warrantyStart = document.getElementById("osWarrantyStart").value || null;
   const status = "Aguardando aprovação";
   const partsUsed = [...currentOsParts];
 
@@ -1658,15 +1813,18 @@ async function saveOrder(e) {
         cliente_id: cId,
         titulo_servico: appliance,
         marca: brand,
+        numero_serie: serialNumber,
+        numero_lacre: sealNumber,
         defeito: problem,
         diagnostico: diagnosis,
         orcamento: price,
+        valor_entrada: entryFee,
+        forma_pagamento: paymentMethod,
         taxa_recusa: refusalFee,
         foto_url: photoUrl,
         status: status,
         pecas_usadas: partsUsed,
-        dias_garantia: warrantyDays,
-        data_conclusao: warrantyStart
+        dias_garantia: warrantyDays
       }]).select("id").single();
 
       if (osRes.error) throw osRes.error;
@@ -1675,8 +1833,9 @@ async function saveOrder(e) {
       const dbId = osRes.data.id;
       const createdId = "WR-" + dbId;
       orders.push({
-        id: createdId, dbId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed,
-        dias_garantia: warrantyDays, data_conclusao: warrantyStart,
+        id: createdId, dbId, name, phone, appliance, brand, serialNumber, sealNumber, problem, diagnosis,
+        price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed,
+        dias_garantia: warrantyDays, data_conclusao: null,
         created: new Date().toISOString(), localOnly: false
       });
       localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -1695,11 +1854,11 @@ async function saveOrder(e) {
     }
   }
 
-  // Gera identificador curto e limpo sequencial caso esteja offline
   const shortId = getNextShortOrderId();
   orders.push({ 
-    id: shortId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, 
-    dias_garantia: warrantyDays, data_conclusao: warrantyStart,
+    id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, problem, diagnosis,
+    price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed, 
+    dias_garantia: warrantyDays, data_conclusao: null,
     created: new Date().toISOString(), localOnly: true 
   });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -1738,6 +1897,16 @@ function editOrder(id) {
             <input id="editOsBrand" value="${o.brand || ''}">
           </div>
         </div>
+        <div class="two">
+          <div class="field">
+            <label>Número de Série / IMEI</label>
+            <input id="editOsSerial" value="${o.serialNumber || ''}">
+          </div>
+          <div class="field">
+            <label>Nº do Lacre de Garantia</label>
+            <input id="editOsSeal" value="${o.sealNumber || ''}">
+          </div>
+        </div>
         <div class="field">
           <label>Defeito Relatado</label>
           <textarea id="editOsProblem" rows="2">${o.problem || ''}</textarea>
@@ -1746,35 +1915,51 @@ function editOrder(id) {
           <label>Diagnóstico Técnico</label>
           <textarea id="editOsDiagnosis" rows="2">${o.diagnosis || ''}</textarea>
         </div>
-        <div class="two">
+        <div class="three">
           <div class="field">
             <label>Valor Orçamento (R$) *</label>
             <input id="editOsPrice" required type="number" step="0.01" value="${Number(o.price || 0).toFixed(2)}">
           </div>
           <div class="field">
-            <label>Taxa Recusa (R$) *</label>
-            <input id="editOsRefusalFee" required type="number" step="0.01" value="${Number(o.refusalFee || 0).toFixed(2)}">
+            <label>Sinal / Entrada (R$)</label>
+            <input id="editOsEntryFee" type="number" step="0.01" value="${Number(o.entryFee || 0).toFixed(2)}">
+          </div>
+          <div class="field">
+            <label>Forma de Pagamento</label>
+            <select id="editOsPaymentMethod">
+              <option value="Pix" ${o.paymentMethod==='Pix'?'selected':''}>Pix</option>
+              <option value="Dinheiro" ${o.paymentMethod==='Dinheiro'?'selected':''}>Dinheiro</option>
+              <option value="Cartão de Crédito" ${o.paymentMethod==='Cartão de Crédito'?'selected':''}>Cartão de Crédito</option>
+              <option value="Cartão de Débito" ${o.paymentMethod==='Cartão de Débito'?'selected':''}>Cartão de Débito</option>
+              <option value="A Combinar" ${o.paymentMethod==='A Combinar'?'selected':''}>A Combinar</option>
+            </select>
           </div>
         </div>
         <div class="two">
           <div class="field">
+            <label>Taxa Recusa (R$) *</label>
+            <input id="editOsRefusalFee" required type="number" step="0.01" value="${Number(o.refusalFee || 0).toFixed(2)}">
+          </div>
+          <div class="field">
             <label>Dias de Garantia</label>
             <input id="editOsWarrantyDays" type="number" value="${o.dias_garantia !== undefined ? o.dias_garantia : 90}">
           </div>
+        </div>
+        <div class="two">
           <div class="field">
             <label>Data de Início da Garantia / Conclusão</label>
             <input id="editOsWarrantyStart" type="date" value="${o.data_conclusao || ''}">
           </div>
-        </div>
-        <div class="field">
-          <label>Status da Ordem</label>
-          <select id="editOsStatus">
-            <option value="Aguardando aprovação" ${o.status === 'Aguardando aprovação' ? 'selected' : ''}>Aguardando aprovação</option>
-            <option value="Aprovado - Conserto iniciado" ${o.status === 'Aprovado - Conserto iniciado' || o.status === 'Em conserto' ? 'selected' : ''}>Aprovado - Conserto iniciado</option>
-            <option value="Pronto para retirada" ${o.status === 'Pronto para retirada' ? 'selected' : ''}>Pronto para retirada</option>
-            <option value="Concluído" ${o.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
-            <option value="Não aprovado" ${o.status === 'Não aprovado' ? 'selected' : ''}>Não aprovado</option>
-          </select>
+          <div class="field">
+            <label>Status da Ordem</label>
+            <select id="editOsStatus">
+              <option value="Aguardando aprovação" ${o.status === 'Aguardando aprovação' ? 'selected' : ''}>Aguardando aprovação</option>
+              <option value="Aprovado - Conserto iniciado" ${o.status === 'Aprovado - Conserto iniciado' || o.status === 'Em conserto' ? 'selected' : ''}>Aprovado - Conserto iniciado</option>
+              <option value="Pronto para retirada" ${o.status === 'Pronto para retirada' ? 'selected' : ''}>Pronto para retirada</option>
+              <option value="Concluído" ${o.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+              <option value="Não aprovado" ${o.status === 'Não aprovado' ? 'selected' : ''}>Não aprovado</option>
+            </select>
+          </div>
         </div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
           <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
@@ -1795,9 +1980,13 @@ async function updateOrder(e, id) {
   o.phone = document.getElementById("editOsPhone").value.trim();
   o.appliance = document.getElementById("editOsAppliance").value.trim();
   o.brand = document.getElementById("editOsBrand").value.trim();
+  o.serialNumber = document.getElementById("editOsSerial").value.trim();
+  o.sealNumber = document.getElementById("editOsSeal").value.trim();
   o.problem = document.getElementById("editOsProblem").value.trim();
   o.diagnosis = document.getElementById("editOsDiagnosis").value.trim();
   o.price = parseFloat(document.getElementById("editOsPrice").value) || 0;
+  o.entryFee = parseFloat(document.getElementById("editOsEntryFee").value) || 0;
+  o.paymentMethod = document.getElementById("editOsPaymentMethod").value;
   o.refusalFee = parseFloat(document.getElementById("editOsRefusalFee").value) || 0;
   o.dias_garantia = parseInt(document.getElementById("editOsWarrantyDays").value) || 90;
   o.data_conclusao = document.getElementById("editOsWarrantyStart").value || null;
@@ -1810,9 +1999,13 @@ async function updateOrder(e, id) {
       await supabaseClient.from("ordens_servico").update({
         titulo_servico: o.appliance,
         marca: o.brand,
+        numero_serie: o.serialNumber,
+        numero_lacre: o.sealNumber,
         defeito: o.problem,
         diagnostico: o.diagnosis,
         orcamento: o.price,
+        valor_entrada: o.entryFee,
+        forma_pagamento: o.paymentMethod,
         taxa_recusa: o.refusalFee,
         dias_garantia: o.dias_garantia,
         data_conclusao: o.data_conclusao,
@@ -1826,6 +2019,92 @@ async function updateOrder(e, id) {
   document.querySelector(".modal").remove();
   alert("✅ Ordem de serviço atualizada!");
   renderDashboard();
+}
+
+function printOrderSheet(id) {
+  const o = orders.find(item => String(item.id) === String(id));
+  if (!o) return;
+
+  const printArea = document.getElementById("printArea");
+  const dataHoje = new Date().toLocaleDateString('pt-BR');
+  const precoTotal = Number(o.price || 0);
+  const entrada = Number(o.entryFee || 0);
+  const restante = Math.max(0, precoTotal - entrada);
+
+  const pecasTexto = (o.partsUsed && o.partsUsed.length > 0)
+    ? o.partsUsed.map(p => `${p.nome} (Qtd: ${p.qtd || 1})`).join(", ")
+    : "Mão de obra e reparo sem peças adicionais";
+
+  printArea.innerHTML = `
+    <div style="font-family: Arial, sans-serif; color:#111; max-width:800px; margin:0 auto; border:1px solid #ccc; padding:24px; border-radius:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #102b50; padding-bottom:12px; margin-bottom:16px;">
+        <div>
+          <h1 style="color:#102b50; font-size:22px; margin:0;">WA RESOLVE - ASSISTÊNCIA TÉCNICA</h1>
+          <p style="font-size:12px; color:#555; margin:3px 0;">Manutenção em Eletrônicos, Eletrodomésticos e Refrigeração</p>
+          <p style="font-size:12px; color:#555; margin:0;">WhatsApp: ${companyWhatsApp || 'A combinar'} · ${companyAddress}</p>
+        </div>
+        <div style="text-align:right;">
+          <h2 style="font-size:20px; color:#102b50; margin:0;">ORDEM DE SERVIÇO</h2>
+          <strong style="font-size:16px; color:#1672d3;">${o.id}</strong><br>
+          <small style="color:#666;">Data: ${dataHoje}</small>
+        </div>
+      </div>
+
+      <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
+        <tr>
+          <td style="padding:6px; background:#f4f7fb; border:1px solid #ddd; width:50%;"><strong>CLIENTE:</strong> ${o.name}</td>
+          <td style="padding:6px; background:#f4f7fb; border:1px solid #ddd; width:50%;"><strong>WHATSAPP:</strong> ${o.phone || 'Não informado'}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px; border:1px solid #ddd;"><strong>EQUIPAMENTO:</strong> ${o.appliance} ${o.brand ? '· ' + o.brand : ''}</td>
+          <td style="padding:6px; border:1px solid #ddd;"><strong>Nº DE SÉRIE:</strong> ${o.serialNumber || 'Não identificado'}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px; border:1px solid #ddd;"><strong>SELO / LACRE:</strong> ${o.sealNumber || 'Sem lacre registrado'}</td>
+          <td style="padding:6px; border:1px solid #ddd;"><strong>STATUS:</strong> ${o.status}</td>
+        </tr>
+      </table>
+
+      <div style="border:1px solid #ddd; padding:10px; margin-bottom:12px; border-radius:4px; font-size:12px;">
+        <strong>Defeito Constatado / Relatado:</strong>
+        <p style="margin:4px 0 8px;">${o.problem || 'Não detalhado'}</p>
+        <strong>Serviço Técnico / Peças Substituídas:</strong>
+        <p style="margin:4px 0 0;">${o.diagnosis || ''} (${pecasTexto})</p>
+      </div>
+
+      <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:13px;">
+        <tr style="background:#f4f7fb;">
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Orçamento Total</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Sinal Pago</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Saldo Restante</th>
+          <th style="padding:8px; border:1px solid #ddd; text-align:left;">Garantia Legal</th>
+        </tr>
+        <tr>
+          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#102b50;">${formatBRL(precoTotal)}</td>
+          <td style="padding:8px; border:1px solid #ddd; color:#166534;">${formatBRL(entrada)}</td>
+          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#c63b48;">${formatBRL(restante)}</td>
+          <td style="padding:8px; border:1px solid #ddd;">${o.dias_garantia || 90} dias</td>
+        </tr>
+      </table>
+
+      <div style="border-top:1px dashed #aaa; padding-top:10px; margin-bottom:28px; font-size:10px; color:#555; line-height:1.4;">
+        <strong>TERMOS DE GARANTIA & CONDIÇÕES:</strong><br>
+        1. A garantia cobre exclusivamente os serviços executados e componentes trocados, perdendo validade em caso de violação do lacre de segurança, queda, umidade ou sobretensão na rede elétrica.<br>
+        2. Conforme o Artigo 1.275 do Código Civil e normas do CDC, equipamentos não retirados em até 90 dias após aviso de conclusão serão considerados abandonados para amortização dos custos operacionais de armazenagem.
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-top:40px; font-size:11px; text-align:center;">
+        <div style="width:45%; border-top:1px solid #444; padding-top:4px;">
+          WA RESOLVE - TÉCNICO RESPONSÁVEL
+        </div>
+        <div style="width:45%; border-top:1px solid #444; padding-top:4px;">
+          ${o.name} - CLIENTE
+        </div>
+      </div>
+    </div>
+  `;
+
+  window.print();
 }
 
 async function saveClient(e) {
@@ -1899,19 +2178,33 @@ function openKeyModal() {
   modal.className = "modal";
   modal.innerHTML = `
     <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:8px;">🔑 Configurações da WA Resolve</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Personalize a sua Logo e os links públicos.</p>
+      <h3 style="color:var(--navy); margin-bottom:8px;">⚙️ Configurações da WA Resolve</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Configure seus dados de atendimento, PIX e logotipo.</p>
       
       <div class="field">
-        <label>🖼️ Link da Logo da Empresa (Imagem PNG/JPEG)</label>
+        <label>📱 WhatsApp Oficial da Assistência (com DDD, somente números)</label>
+        <input id="modalPhoneInput" placeholder="Ex: 84999990000" value="${companyWhatsApp}">
+      </div>
+
+      <div class="field">
+        <label>💳 Chave PIX da Empresa (CPF, CNPJ, Celular ou Aleatória)</label>
+        <input id="modalPixInput" placeholder="Ex: 84999990000 ou chave@pix.com" value="${companyPixKey}">
+        <small style="color:var(--muted); font-size:11px;">Essa chave aparecerá para o cliente pagar pelo link público.</small>
+      </div>
+
+      <div class="field">
+        <label>📍 Endereço da Assistência (Sai no cabeçalho do comprovante)</label>
+        <input id="modalAddressInput" placeholder="Ex: Rua Central, 100 - Mossoró/RN" value="${companyAddress}">
+      </div>
+
+      <div class="field">
+        <label>🖼️ Link da Imagem da Logo</label>
         <input id="modalLogoInput" placeholder="Ex: togo.png ou URL da logo" value="${companyLogoUrl}">
-        <small style="color:var(--muted); font-size:11px;">Recomendado: 400x100px (horizontal) com fundo transparente.</small>
       </div>
 
       <div class="field">
         <label>🌐 Endereço público do sistema (opcional)</label>
         <input id="modalPublicUrl" placeholder="Deixe vazio para usar o endereço atual do site" value="${localStorage.getItem("wa_public_url") || ""}">
-        <small style="color:var(--muted); font-size:11px;">Use o endereço publicado do WA Resolve. Não informe o endereço do painel local do seu computador.</small>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
@@ -1924,11 +2217,18 @@ function openKeyModal() {
 }
 
 function saveSettingsModal(btn) {
-  const logo = document.getElementById("modalLogoInput").value.trim();
+  companyWhatsApp = document.getElementById("modalPhoneInput").value.trim().replace(/\D/g, "");
+  companyPixKey = document.getElementById("modalPixInput").value.trim();
+  companyAddress = document.getElementById("modalAddressInput").value.trim();
+  companyLogoUrl = document.getElementById("modalLogoInput").value.trim();
   const urlPub = document.getElementById("modalPublicUrl").value.trim();
-  companyLogoUrl = logo;
-  localStorage.setItem("wa_company_logo", logo);
+
+  localStorage.setItem("wa_company_phone", companyWhatsApp);
+  localStorage.setItem("wa_company_pix", companyPixKey);
+  localStorage.setItem("wa_company_address", companyAddress);
+  localStorage.setItem("wa_company_logo", companyLogoUrl);
   localStorage.setItem("wa_public_url", urlPub);
+
   btn.closest(".modal").remove();
   alert("Configurações salvas com sucesso!");
   renderDashboard();
@@ -2098,16 +2398,6 @@ function changePin() {
     adminPin = novo.trim();
     localStorage.setItem("wa_admin_pin", adminPin);
     alert("Senha alterada com sucesso!");
-  }
-}
-
-function editCompanyWhatsApp() {
-  const novo = prompt("Digite o número de WhatsApp oficial da sua assistência (com DDD, somente números):", companyWhatsApp || "849...");
-  if (novo !== null) {
-    companyWhatsApp = novo.replace(/\D/g, "");
-    localStorage.setItem("wa_company_phone", companyWhatsApp);
-    alert("WhatsApp da assistência salvo com sucesso!");
-    renderDashboard();
   }
 }
 
