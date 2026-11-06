@@ -10,10 +10,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#102b50">
 
-  <!-- Ícone do App na tela inicial do iPhone (usa sua logo ou gera o ícone azul WA) -->
+  <!-- Ícone do App na tela inicial do iPhone -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23102b50'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' fill='%23f3c44e' font-family='Arial, sans-serif' font-weight='900' font-size='44'>WA</text></svg>">
 
-  <!-- Manifesto embutido para abrir em tela cheia sem barra de endereço -->
+  <!-- Manifesto embutido -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"WA Resolve | Central de Serviços","short_name":"WA Resolve","start_url":"./","display":"standalone","background_color":"#102b50","theme_color":"#102b50"}'>
   <!-- === FIM DA CONFIGURAÇÃO IPHONE === -->
 
@@ -166,7 +166,7 @@
       min-height: 40px;
       background: #fff;
       color: #26384f;
-      font-size: 16px; /* Evita zoom automático do Safari no iPhone ao tocar no campo */
+      font-size: 16px;
       box-shadow: 0 1px 2px rgba(16,43,80,.02);
       transition: border-color 0.2s, box-shadow 0.2s;
     }
@@ -273,6 +273,7 @@ let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
 let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
 let activeTab = localStorage.getItem("wa_active_tab") || "orders";
 let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
+let historySearchQuery = localStorage.getItem("wa_history_search") || "";
 
 let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
 let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
@@ -280,12 +281,16 @@ let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
 
 function formatarDataBR(dataIso) {
-  if (!dataIso) return "";
+  if (!dataIso) return "-";
   const partes = String(dataIso).split("T")[0].split("-");
   if (partes.length === 3) {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
   return dataIso;
+}
+
+function formatBRL(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -357,10 +362,12 @@ function syncFromSupabase() {
         refusalFee: Number(d.taxa_recusa) || 0,
         photoUrl: d.foto_url || "",
         status: d.status || "Aguardando aprovação",
-        created: d.created_at
+        created: d.created_at,
+        data_conclusao: d.data_conclusao || (d.status === "Concluído" || d.status === "Pronto para retirada" ? (d.created_at ? d.created_at.split('T')[0] : '') : ''),
+        dias_garantia: d.dias_garantia !== undefined && d.dias_garantia !== null ? Number(d.dias_garantia) : 90
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
-      if (isUnlocked && activeTab === 'orders' && !window.location.search && !window.location.hash) renderDashboard();
+      if (isUnlocked && (activeTab === 'orders' || activeTab === 'history' || activeTab === 'balance') && !window.location.search && !window.location.hash) renderDashboard();
     }
   });
 
@@ -459,6 +466,7 @@ function renderDashboard() {
     </header>
     <div class="nav-tabs">
       <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordens de Serviço</button>
+      <button class="nav-tab ${activeTab==='history'?'active':''}" onclick="setTab('history')">🛡️ Histórico & Garantias</button>
       <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
       <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
       <button class="nav-tab ${activeTab==='parts'?'active':''}" onclick="setTab('parts')">📦 Cadastro de Peças</button>
@@ -475,6 +483,8 @@ function renderDashboard() {
     body = renderParts();
   } else if (activeTab === "balance") {
     body = renderBalance();
+  } else if (activeTab === "history") {
+    body = renderHistory();
   } else {
     body = renderOrders();
   }
@@ -501,6 +511,7 @@ function renderOrders() {
               <div style="font-size:13px; color:#334155; margin-top:2px;">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</div>
               <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
               ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
+              ${o.data_conclusao ? `<div style="font-size:11px; color:var(--green); margin-top:2px;">🛡️ Concluído em: ${formatarDataBR(o.data_conclusao)} (${o.dias_garantia || 90}d garantia)</div>` : ''}
             </div>
             <div style="text-align:right;">
               <strong style="color:var(--navy);">R$ ${Number(o.price||0).toFixed(2)}</strong>
@@ -512,7 +523,7 @@ function renderOrders() {
             <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Imagem Defeito</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status / Garantia</button>
             <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
           </div>
         </div>
@@ -596,6 +607,16 @@ function renderOrders() {
               <small style="font-size:11px; color:var(--muted);">Custo cobrado se recusado (análise/deslocamento).</small>
             </div>
           </div>
+          <div class="two">
+            <div class="field">
+              <label>Prazo Padrão de Garantia (Dias)</label>
+              <input id="osWarrantyDays" type="number" value="90" min="0" placeholder="90">
+            </div>
+            <div class="field">
+              <label>Data de Início da Garantia (Opcional)</label>
+              <input id="osWarrantyStart" type="date">
+            </div>
+          </div>
           <div class="field">
             <label>📦 Selecionar Peças Utilizadas no Equipamento (Sem exibir preço ao cliente)</label>
             ${partsPickerHtml}
@@ -622,6 +643,150 @@ function renderOrders() {
       </div>
     </div>
   `;
+}
+
+function renderHistory() {
+  const completedOrders = orders.filter(o => 
+    o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue"
+  );
+
+  let totalFaturamento = 0;
+  let totalCustoPecas = 0;
+  let ativasCount = 0;
+  let expiradasCount = 0;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const filtered = completedOrders.filter(o => {
+    if (!historySearchQuery) return true;
+    const q = historySearchQuery.toLowerCase();
+    return (o.name && o.name.toLowerCase().includes(q)) ||
+           (o.appliance && o.appliance.toLowerCase().includes(q)) ||
+           (o.id && o.id.toLowerCase().includes(q)) ||
+           (o.brand && o.brand.toLowerCase().includes(q));
+  });
+
+  let rowsHtml = "";
+  if (filtered.length === 0) {
+    rowsHtml = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Nenhum serviço concluído encontrado no histórico.</td></tr>`;
+  } else {
+    filtered.forEach(o => {
+      const preco = Number(o.price) || 0;
+      const custo = (o.partsUsed && Array.isArray(o.partsUsed)) 
+        ? o.partsUsed.reduce((s, p) => s + (Number(p.preco) || 0) * (Number(p.qtd) || 1), 0)
+        : 0;
+      const lucro = preco - custo;
+
+      totalFaturamento += preco;
+      totalCustoPecas += custo;
+
+      const dataBaseStr = o.data_conclusao || (o.created ? o.created.split('T')[0] : '');
+      const diasGarantia = Number(o.dias_garantia !== undefined ? o.dias_garantia : 90);
+
+      let dataFimFormatada = "-";
+      let statusGarantiaBadge = '<span class="tag" style="background:#f1f5f9; color:#64748b;">Sem data</span>';
+
+      if (dataBaseStr && diasGarantia > 0) {
+        const [ano, mes, dia] = dataBaseStr.split('-');
+        const dtInicio = new Date(ano, mes - 1, dia);
+        const dtFim = new Date(ano, mes - 1, dia);
+        dtFim.setDate(dtFim.getDate() + diasGarantia);
+
+        dataFimFormatada = formatarDataBR(dtFim.toISOString().split('T')[0]);
+
+        if (hoje <= dtFim) {
+          const diffMs = dtFim - hoje;
+          const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          statusGarantiaBadge = `<span class="tag" style="background:#d1fae5; color:#065f46;">Ativa (${diffDias}d restam)</span>`;
+          ativasCount++;
+        } else {
+          statusGarantiaBadge = `<span class="tag" style="background:#f1f5f9; color:#64748b;">Expirada</span>`;
+          expiradasCount++;
+        }
+      }
+
+      rowsHtml += `
+        <tr>
+          <td><strong>${o.id}</strong></td>
+          <td>
+            <strong>${o.name}</strong><br>
+            <small style="color:var(--muted);">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</small>
+          </td>
+          <td>${formatarDataBR(dataBaseStr)}</td>
+          <td>
+            <div style="font-size:12px;">
+              <span>Início: <strong>${formatarDataBR(dataBaseStr)}</strong></span><br>
+              <span>Fim: <strong>${dataFimFormatada}</strong> (${diasGarantia} dias)</span>
+            </div>
+          </td>
+          <td>${statusGarantiaBadge}</td>
+          <td style="text-align:right; font-weight:700; color:var(--navy);">${formatBRL(preco)}</td>
+          <td style="text-align:right; font-weight:700; color:var(--green);">${formatBRL(lucro)}</td>
+        </tr>
+      `;
+    });
+  }
+
+  const lucroLiquidoGeral = totalFaturamento - totalCustoPecas;
+
+  return `
+    <!-- Balanço Geral dos Serviços Realizados -->
+    <div class="stats">
+      <div class="stat">
+        <span>Serviços Realizados</span>
+        <strong>${completedOrders.length}</strong>
+        <small style="color:var(--muted);">${ativasCount} com garantia ativa</small>
+      </div>
+      <div class="stat" style="border-left-color: var(--green);">
+        <span>Faturamento Geral</span>
+        <strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong>
+        <small style="color:var(--muted);">Total faturado no histórico</small>
+      </div>
+      <div class="stat" style="border-left-color: var(--red);">
+        <span>Custo Geral Peças</span>
+        <strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong>
+        <small style="color:var(--muted);">Peças consumidas do estoque</small>
+      </div>
+      <div class="stat" style="border-left-color: #10b981;">
+        <span>Lucro Líquido Real</span>
+        <strong style="color:#10b981;">${formatBRL(lucroLiquidoGeral)}</strong>
+        <small style="color:var(--muted);">Margem líquida do técnico</small>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <h2 style="margin-bottom:0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;margin-right:8px;">🛡️</span> Histórico de Serviços & Garantias</h2>
+        <input class="visit-search" type="text" placeholder="⌕ Buscar cliente, OS ou aparelho..." value="${historySearchQuery.replace(/"/g, '&quot;')}" oninput="filterHistory(this.value)">
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="table-custom">
+          <thead>
+            <tr>
+              <th>OS</th>
+              <th>Cliente / Aparelho</th>
+              <th>Data Conclusão</th>
+              <th>Vigência da Garantia</th>
+              <th>Status Garantia</th>
+              <th style="text-align:right;">Valor do Serviço</th>
+              <th style="text-align:right;">Lucro Líquido</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function filterHistory(q) {
+  historySearchQuery = q;
+  localStorage.setItem("wa_history_search", q);
+  renderDashboard();
 }
 
 function renderParts() {
@@ -721,7 +886,7 @@ function renderBalance() {
   const totalFaturamento = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
   const totalCustoPecas = orders.reduce((sum, o) => {
     if (o.partsUsed && Array.isArray(o.partsUsed)) {
-      return sum + o.partsUsed.reduce((s, p) => s + (Number(p.preco) || 0), 0);
+      return sum + o.partsUsed.reduce((s, p) => s + ((Number(p.preco) || 0) * (Number(p.qtd) || 1)), 0);
     }
     return sum;
   }, 0);
@@ -739,8 +904,8 @@ function renderBalance() {
     <div class="stats">
       <div class="stat"><span>Total de Ordens (OS)</span><strong>${totalOrders}</strong><small style="color:var(--muted);">Ordens cadastradas</small></div>
       <div class="stat"><span>Serviços Concluídos</span><strong>${completedOrders.length}</strong><small style="color:var(--muted);">Finalizados/Em andamento</small></div>
-      <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">R$ ${totalFaturamento.toFixed(2)}</strong><small style="color:var(--muted);">Mão de obra + Orçamentos</small></div>
-      <div class="stat" style="border-left-color: var(--red);"><span>Custo de Peças (Estoque)</span><strong style="color:var(--red);">R$ ${totalCustoPecas.toFixed(2)}</strong><small style="color:var(--muted);">Total em componentes</small></div>
+      <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong><small style="color:var(--muted);">Mão de obra + Orçamentos</small></div>
+      <div class="stat" style="border-left-color: var(--red);"><span>Custo de Peças (Estoque)</span><strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong><small style="color:var(--muted);">Total em componentes</small></div>
     </div>
 
     <div class="panel">
@@ -760,15 +925,15 @@ function renderBalance() {
         </div>
         
         <div>
-          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">💰 Composição Financeira</h3>
+          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">💰 Composição Financeira Geral</h3>
           <table class="table-custom">
             <thead>
-              <tr><th>Componente Financeiro</th><th>Valor (R$)</th><th>% do Faturamento</th></tr>
+              <tr><th>Componente Financeiro</th><th>Valor</th><th>% do Faturamento</th></tr>
             </thead>
             <tbody>
-              <tr><td>Faturamento Total</td><td>R$ ${totalFaturamento.toFixed(2)}</td><td>100,0%</td></tr>
-              <tr><td>Custo de Peças</td><td>R$ ${totalCustoPecas.toFixed(2)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
-              <tr><td><strong>Lucro Líquido Estimado</strong></td><td><strong style="color:var(--green);">R$ ${lucroLiquido.toFixed(2)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
+              <tr><td>Faturamento Total</td><td>${formatBRL(totalFaturamento)}</td><td>100,0%</td></tr>
+              <tr><td>Custo de Peças</td><td>${formatBRL(totalCustoPecas)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
+              <tr><td><strong>Lucro Líquido Estimado</strong></td><td><strong style="color:var(--green);">${formatBRL(lucroLiquido)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
             </tbody>
           </table>
         </div>
@@ -1449,6 +1614,8 @@ async function saveOrder(e) {
   const price = parseFloat(document.getElementById("osPrice").value) || 0;
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
+  const warrantyDays = parseInt(document.getElementById("osWarrantyDays").value) || 90;
+  const warrantyStart = document.getElementById("osWarrantyStart").value || null;
   const status = "Aguardando aprovação";
   const partsUsed = [...currentOsParts];
 
@@ -1477,7 +1644,9 @@ async function saveOrder(e) {
         taxa_recusa: refusalFee,
         foto_url: photoUrl,
         status: status,
-        pecas_usadas: partsUsed
+        pecas_usadas: partsUsed,
+        dias_garantia: warrantyDays,
+        data_conclusao: warrantyStart
       }]).select("id").single();
 
       if (osRes.error) throw osRes.error;
@@ -1487,6 +1656,7 @@ async function saveOrder(e) {
       const createdId = "WR-" + dbId;
       orders.push({
         id: createdId, dbId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed,
+        dias_garantia: warrantyDays, data_conclusao: warrantyStart,
         created: new Date().toISOString(), localOnly: false
       });
       localStorage.setItem("wa_orders", JSON.stringify(orders));
@@ -1509,7 +1679,11 @@ async function saveOrder(e) {
   }
 
   const tempId = "WR-LOCAL-" + Date.now();
-  orders.push({ id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, created: new Date().toISOString(), localOnly: true });
+  orders.push({ 
+    id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, 
+    dias_garantia: warrantyDays, data_conclusao: warrantyStart,
+    created: new Date().toISOString(), localOnly: true 
+  });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   currentOsParts = [];
   renderDashboard();
@@ -1756,10 +1930,26 @@ function changeOrderStatus(id) {
   else if (novo === "4") o.status = "Concluído";
   else if (novo === "5") o.status = "Não aprovado";
   else o.status = novo;
+
+  // Se marcar como Concluído ou Pronto para retirada, solicita data e garantia caso ainda não tenha
+  if (o.status === "Concluído" || o.status === "Pronto para retirada") {
+    if (!o.data_conclusao) {
+      const dataHoje = new Date().toISOString().split('T')[0];
+      const dataUser = prompt("Data da conclusão do serviço (AAAA-MM-DD):", dataHoje);
+      o.data_conclusao = dataUser ? dataUser.trim() : dataHoje;
+    }
+    const dias = prompt("Dias de garantia a contar desta data:", o.dias_garantia || "90");
+    if (dias !== null) {
+      o.dias_garantia = parseInt(dias) || 90;
+    }
+  }
   
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   if (supabaseClient && o.dbId) {
-    supabaseClient.from("ordens_servico").update({ status: o.status }).eq("id", o.dbId);
+    const payload = { status: o.status };
+    if (o.data_conclusao) payload.data_conclusao = o.data_conclusao;
+    if (o.dias_garantia !== undefined) payload.dias_garantia = o.dias_garantia;
+    supabaseClient.from("ordens_servico").update(payload).eq("id", o.dbId);
   }
   renderDashboard();
 }
