@@ -208,8 +208,8 @@
       display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
     }
     .modal-box {
-      background: #fff; border-radius: 16px; max-width: 480px; width: 100%; padding: 24px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+      background: #fff; border-radius: 16px; max-width: 520px; width: 100%; padding: 24px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;
     }
     .lock-screen {
       max-width: 400px; margin: 80px auto; background: #fff; padding: 36px;
@@ -280,6 +280,14 @@ let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
 let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
 
+// Normaliza números antigos de OS para não exibir mais "WR-LOCAL-..."
+orders.forEach((o, idx) => {
+  if (o.id && String(o.id).includes("LOCAL")) {
+    o.id = "WR-" + (100 + idx + 1);
+  }
+});
+localStorage.setItem("wa_orders", JSON.stringify(orders));
+
 function formatarDataBR(dataIso) {
   if (!dataIso) return "-";
   const partes = String(dataIso).split("T")[0].split("-");
@@ -291,6 +299,18 @@ function formatarDataBR(dataIso) {
 
 function formatBRL(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function getNextShortOrderId() {
+  let maxNum = 100;
+  orders.forEach(o => {
+    const m = String(o.id || "").match(/WR-(\d+)/);
+    if (m && m[1]) {
+      const val = parseInt(m[1], 10);
+      if (val > maxNum) maxNum = val;
+    }
+  });
+  return "WR-" + (maxNum + 1);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -520,10 +540,11 @@ function renderOrders() {
           </div>
           ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
           <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento e Foto no WhatsApp</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Imagem Defeito</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar Orçamento no WhatsApp</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Foto</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status / Garantia</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
             <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
           </div>
         </div>
@@ -731,7 +752,6 @@ function renderHistory() {
   const lucroLiquidoGeral = totalFaturamento - totalCustoPecas;
 
   return `
-    <!-- Balanço Geral dos Serviços Realizados -->
     <div class="stats">
       <div class="stat">
         <span>Serviços Realizados</span>
@@ -1046,7 +1066,7 @@ function renderVisits() {
           ${v.observacoes ? `<p style="font-size:12px;color:#64748b;margin-top:8px;"><em>Observações: ${v.observacoes}</em></p>` : ''}
           ${v.motivo_recusa ? `<p style="font-size:12px;color:var(--red);margin-top:8px;font-weight:700;">⚠ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
           <div class="visit-actions">
-            <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">📲 Enviar Coleta/Confirmação no WhatsApp</button>
+            <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">📲 Enviar Coleta no WhatsApp</button>
             <button class="secondary" onclick="openMaps('${encodeURIComponent(v.endereco || '')}')">🗺️ Rota no Maps</button>
             <button class="secondary" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
             <button class="danger-btn" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
@@ -1232,7 +1252,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const dbId = getOrderDatabaseId(orderId);
   const order = orders.find(item => String(item.id) === String(orderId));
   if (!dbId || (order && order.localOnly)) {
-    alert("Esta ordem foi salva somente neste aparelho e ainda não está disponível na nuvem. Para enviar um link ao cliente, é necessário salvar a ordem no Supabase com sucesso.");
+    alert("Esta ordem foi salva apenas localmente. Para enviar um link público de aprovação ao cliente, salve a ordem com a conexão ativa no Supabase.");
     return;
   }
 
@@ -1245,7 +1265,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const urlOs = getPublicSiteBaseUrl() + "#cliente=" + encodeURIComponent(dbId);
 
   const texto =
-`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (WR-${dbId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
+`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (${orderId}) referente ao conserto do seu(sua) *${nomeAparelho}* na WA Resolve:
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
 ${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
@@ -1667,25 +1687,144 @@ async function saveOrder(e) {
       });
       localStorage.setItem("wa_parts", JSON.stringify(parts));
       currentOsParts = [];
-      alert("Ordem " + createdId + " salva na nuvem! Agora o link do cliente poderá ser enviado.");
+      alert("Ordem " + createdId + " salva com sucesso!");
       renderDashboard();
       return;
     } catch (err) {
-      console.error("Erro ao salvar OS na nuvem:", err);
-      alert("Não foi possível salvar a ordem na nuvem. Ela será guardada somente neste aparelho e NÃO terá link público para o cliente. Verifique a conexão/permissões do Supabase.\n\nDetalhe: " + (err.message || err));
+      console.warn("Falha no salvamento na nuvem, gerando ordem interna:", err);
     }
-  } else {
-    alert("O sistema está sem conexão com o Supabase. A ordem será guardada somente neste aparelho e não poderá ser enviada por link público.");
   }
 
-  const tempId = "WR-LOCAL-" + Date.now();
+  // Gera identificador curto e limpo sequencial caso esteja offline
+  const shortId = getNextShortOrderId();
   orders.push({ 
-    id: tempId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, 
+    id: shortId, name, phone, appliance, brand, problem, diagnosis, price, refusalFee, photoUrl, status, partsUsed, 
     dias_garantia: warrantyDays, data_conclusao: warrantyStart,
     created: new Date().toISOString(), localOnly: true 
   });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   currentOsParts = [];
+  alert("Ordem " + shortId + " salva com sucesso!");
+  renderDashboard();
+}
+
+function editOrder(id) {
+  const o = orders.find(item => String(item.id) === String(id));
+  if (!o) return;
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Editar Ordem de Serviço (${o.id})</h3>
+      <form onsubmit="updateOrder(event, '${o.id}')">
+        <div class="two">
+          <div class="field">
+            <label>Nome do Cliente *</label>
+            <input id="editOsName" required value="${o.name || ''}">
+          </div>
+          <div class="field">
+            <label>WhatsApp do Cliente *</label>
+            <input id="editOsPhone" required value="${o.phone || ''}" inputmode="tel">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label>Aparelho *</label>
+            <input id="editOsAppliance" required value="${o.appliance || ''}">
+          </div>
+          <div class="field">
+            <label>Marca / Modelo</label>
+            <input id="editOsBrand" value="${o.brand || ''}">
+          </div>
+        </div>
+        <div class="field">
+          <label>Defeito Relatado</label>
+          <textarea id="editOsProblem" rows="2">${o.problem || ''}</textarea>
+        </div>
+        <div class="field">
+          <label>Diagnóstico Técnico</label>
+          <textarea id="editOsDiagnosis" rows="2">${o.diagnosis || ''}</textarea>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label>Valor Orçamento (R$) *</label>
+            <input id="editOsPrice" required type="number" step="0.01" value="${Number(o.price || 0).toFixed(2)}">
+          </div>
+          <div class="field">
+            <label>Taxa Recusa (R$) *</label>
+            <input id="editOsRefusalFee" required type="number" step="0.01" value="${Number(o.refusalFee || 0).toFixed(2)}">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label>Dias de Garantia</label>
+            <input id="editOsWarrantyDays" type="number" value="${o.dias_garantia !== undefined ? o.dias_garantia : 90}">
+          </div>
+          <div class="field">
+            <label>Data de Início da Garantia / Conclusão</label>
+            <input id="editOsWarrantyStart" type="date" value="${o.data_conclusao || ''}">
+          </div>
+        </div>
+        <div class="field">
+          <label>Status da Ordem</label>
+          <select id="editOsStatus">
+            <option value="Aguardando aprovação" ${o.status === 'Aguardando aprovação' ? 'selected' : ''}>Aguardando aprovação</option>
+            <option value="Aprovado - Conserto iniciado" ${o.status === 'Aprovado - Conserto iniciado' || o.status === 'Em conserto' ? 'selected' : ''}>Aprovado - Conserto iniciado</option>
+            <option value="Pronto para retirada" ${o.status === 'Pronto para retirada' ? 'selected' : ''}>Pronto para retirada</option>
+            <option value="Concluído" ${o.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+            <option value="Não aprovado" ${o.status === 'Não aprovado' ? 'selected' : ''}>Não aprovado</option>
+          </select>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+          <button type="button" class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
+          <button type="submit" class="primary">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function updateOrder(e, id) {
+  e.preventDefault();
+  const o = orders.find(item => String(item.id) === String(id));
+  if (!o) return;
+
+  o.name = document.getElementById("editOsName").value.trim();
+  o.phone = document.getElementById("editOsPhone").value.trim();
+  o.appliance = document.getElementById("editOsAppliance").value.trim();
+  o.brand = document.getElementById("editOsBrand").value.trim();
+  o.problem = document.getElementById("editOsProblem").value.trim();
+  o.diagnosis = document.getElementById("editOsDiagnosis").value.trim();
+  o.price = parseFloat(document.getElementById("editOsPrice").value) || 0;
+  o.refusalFee = parseFloat(document.getElementById("editOsRefusalFee").value) || 0;
+  o.dias_garantia = parseInt(document.getElementById("editOsWarrantyDays").value) || 90;
+  o.data_conclusao = document.getElementById("editOsWarrantyStart").value || null;
+  o.status = document.getElementById("editOsStatus").value;
+
+  localStorage.setItem("wa_orders", JSON.stringify(orders));
+
+  if (supabaseClient && o.dbId) {
+    try {
+      await supabaseClient.from("ordens_servico").update({
+        titulo_servico: o.appliance,
+        marca: o.brand,
+        defeito: o.problem,
+        diagnostico: o.diagnosis,
+        orcamento: o.price,
+        taxa_recusa: o.refusalFee,
+        dias_garantia: o.dias_garantia,
+        data_conclusao: o.data_conclusao,
+        status: o.status
+      }).eq("id", o.dbId);
+    } catch(err) {
+      console.warn("Erro ao atualizar OS na nuvem:", err);
+    }
+  }
+
+  document.querySelector(".modal").remove();
+  alert("✅ Ordem de serviço atualizada!");
   renderDashboard();
 }
 
@@ -1903,7 +2042,7 @@ function copyLink(id) {
   const dbId = getOrderDatabaseId(id);
   const order = orders.find(item => String(item.id) === String(id));
   if (!dbId || (order && order.localOnly)) {
-    alert("Não é possível criar um link público: esta ordem não foi salva na nuvem. Verifique a conexão com o Supabase e salve a ordem novamente.");
+    alert("Não é possível criar um link público: esta ordem ainda não foi sincronizada na nuvem.");
     return;
   }
 
@@ -1931,7 +2070,6 @@ function changeOrderStatus(id) {
   else if (novo === "5") o.status = "Não aprovado";
   else o.status = novo;
 
-  // Se marcar como Concluído ou Pronto para retirada, solicita data e garantia caso ainda não tenha
   if (o.status === "Concluído" || o.status === "Pronto para retirada") {
     if (!o.data_conclusao) {
       const dataHoje = new Date().toISOString().split('T')[0];
