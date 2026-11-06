@@ -15,6 +15,7 @@
 
   <title>WA Resolve | Central de Serviços</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --navy: #102b50;
@@ -289,14 +290,6 @@ let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
 let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
 let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
 
-// Limpa identificadores antigos "LOCAL" para números curtos limpos
-orders.forEach((o, idx) => {
-  if (o.id && String(o.id).includes("LOCAL")) {
-    o.id = "WR-" + (100 + idx + 1);
-  }
-});
-localStorage.setItem("wa_orders", JSON.stringify(orders));
-
 function formatarDataBR(dataIso) {
   if (!dataIso) return "-";
   const partes = String(dataIso).split("T")[0].split("-");
@@ -320,6 +313,57 @@ function getNextShortOrderId() {
     }
   });
   return "WR-" + (maxNum + 1);
+}
+
+// Geração de BR Code / EMV PIX padrão Banco Central
+function crc16(str) {
+  let crc = 0xFFFF;
+  for (let c = 0; c < str.length; c++) {
+    crc ^= str.charCodeAt(c) << 8;
+    for (let i = 0; i < 8; i++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = (crc << 1) ^ 0x1021;
+      } else {
+        crc = crc << 1;
+      }
+    }
+  }
+  let hex = (crc & 0xFFFF).toString(16).toUpperCase();
+  return hex.padStart(4, "0");
+}
+
+function emvField(id, val) {
+  const v = String(val);
+  const len = String(v.length).padStart(2, "0");
+  return `${id}${len}${v}`;
+}
+
+function gerarPixPayload(chave, valor, beneficiario = "WA RESOLVE", cidade = "MOSSORO", txid = "***") {
+  if (!chave) return "";
+  const cleanPix = chave.trim();
+  const accInfo = emvField("00", "BR.GOV.BCB.PIX") + emvField("01", cleanPix);
+  
+  let payload = 
+    emvField("00", "01") + 
+    emvField("26", accInfo) + 
+    emvField("52", "0000") + 
+    emvField("53", "986");
+
+  if (Number(valor) > 0) {
+    payload += emvField("54", Number(valor).toFixed(2));
+  }
+
+  const cleanName = beneficiario.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 25);
+  const cleanCity = cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 15);
+
+  payload += 
+    emvField("58", "BR") + 
+    emvField("59", cleanName) + 
+    emvField("60", cleanCity) + 
+    emvField("62", emvField("05", txid)) + 
+    "6304";
+
+  return payload + crc16(payload);
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -387,6 +431,8 @@ function syncFromSupabase() {
         brand: d.marca || "",
         serialNumber: d.numero_serie || "",
         sealNumber: d.numero_lacre || "",
+        checklistDamages: d.avarias_iniciais || "",
+        accessoriesLeft: d.acessorios_deixados || "",
         problem: d.defeito || d.descricao || "",
         diagnosis: d.diagnostico || "",
         price: Number(d.orcamento) || 0,
@@ -562,7 +608,9 @@ function renderOrders() {
           </div>
           ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
           <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Enviar no WhatsApp</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
+            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px; background:#0284c7;" onclick="openQuickMessagesModal('${o.id}')">💬 Mensagens Rápidas</button>
+            <button class="secondary" style="font-size:12px; padding:6px 10px; background:#10b981; color:#fff;" onclick="openPixQrModal('${o.id}')">💳 QR Code PIX</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px; background:#eff6ff; color:#175ba4;" onclick="printOrderSheet('${o.id}')">🖨️ Comprovante / Termo</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Foto</button>
@@ -634,12 +682,22 @@ function renderOrders() {
           </div>
           <div class="two">
             <div class="field">
-              <label>Número de Série / IMEI (Identificação)</label>
+              <label>Número de Série / IMEI</label>
               <input id="osSerial" placeholder="Ex.: SN-984210492">
             </div>
             <div class="field">
               <label>Nº do Lacre de Garantia (Selo Casca de Ovo)</label>
               <input id="osSeal" placeholder="Ex.: LACRE-0412">
+            </div>
+          </div>
+          <div class="two">
+            <div class="field">
+              <label>🔍 Checklist de Entrada (Avarias prévias / Estado físico)</label>
+              <input id="osChecklistDamages" placeholder="Ex.: Gabinete arranhado, parafuso faltando, sem pés">
+            </div>
+            <div class="field">
+              <label>🔌 Acessórios Deixados com o Aparelho</label>
+              <input id="osAccessoriesLeft" placeholder="Ex.: Cabo de força original, prato de vidro, 1 prateleira">
             </div>
           </div>
           <div class="field">
@@ -707,6 +765,121 @@ function renderOrders() {
       </div>
     </div>
   `;
+}
+
+function openQuickMessagesModal(id) {
+  const o = orders.find(item => String(item.id) === String(id));
+  if (!o) return;
+
+  const cleanPhone = (o.phone || "").replace(/\D/g, "");
+  if (!cleanPhone) return alert("Esta ordem não possui telefone cadastrado.");
+  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
+
+  const preco = Number(o.price || 0);
+  const entrada = Number(o.entryFee || 0);
+  const restante = Math.max(0, preco - entrada);
+
+  const msgPronto = encodeURIComponent(
+`Olá, *${o.name}*! Tudo bem?
+Passando para avisar que o seu(sua) *${o.appliance}* (${o.brand || ''}) já está pronto e 100% testado aqui na *WA Resolve*! 🛠️✅
+
+${restante > 0 ? `💰 *Saldo restante na entrega:* ${formatBRL(restante)}\n` : ''}🛡️ *Garantia do serviço:* ${o.dias_garantia || 90} dias.
+Ficamos no aguardo para retirada ou combinar a entrega!`
+  );
+
+  const msgAguardandoPeca = encodeURIComponent(
+`Olá, *${o.name}*! Aqui é da assistência técnica *WA Resolve*.
+Passando para atualizar o status da sua Ordem (*${o.id}*): seu equipamento (*${o.appliance}*) já foi avaliado em bancada e está aguardando a chegada de um componente específico para finalizarmos o serviço com total garantia e segurança.
+
+Assim que a peça chegar e o reparo for concluído, te avisaremos imediatamente!`
+  );
+
+  const msgCobranca = encodeURIComponent(
+`Olá, *${o.name}*! Segue o lembrete da *WA Resolve* referente à Ordem *${o.id}* (${o.appliance}).
+Saldo pendente: *${formatBRL(restante)}*.
+Chave PIX da assistência: ${companyPixKey || companyWhatsApp || 'Consulte-nos'}
+
+Qualquer dúvida, estamos à disposição!`
+  );
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:12px;">💬 Mensagens Rápidas WhatsApp (${o.id})</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Envie comunicados profissionais direto para o WhatsApp de <strong>${o.name}</strong>:</p>
+
+      <div style="display:grid; gap:10px;">
+        <button class="whatsapp-btn" style="padding:12px; font-size:14px; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgPronto}', '_blank'); this.closest('.modal').remove();">
+          🟢 1. Aparelho Pronto para Retirada
+        </button>
+
+        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#d97706; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgAguardandoPeca}', '_blank'); this.closest('.modal').remove();">
+          🟡 2. Em Bancada - Aguardando Chegada de Peça
+        </button>
+
+        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#2563eb; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgCobranca}', '_blank'); this.closest('.modal').remove();">
+          🔵 3. Lembrete de Saldo Restante / Pagamento
+        </button>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function openPixQrModal(id) {
+  const o = orders.find(item => String(item.id) === String(id));
+  if (!o) return;
+
+  if (!companyPixKey) {
+    alert("Por favor, configure sua Chave PIX primeiro no botão '⚙️ Config & PIX' no topo da tela.");
+    openKeyModal();
+    return;
+  }
+
+  const preco = Number(o.price || 0);
+  const entrada = Number(o.entryFee || 0);
+  const restante = Math.max(0, preco - entrada);
+  const valorCobrado = restante > 0 ? restante : preco;
+
+  const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
+  const pixPayload = gerarPixPayload(companyPixKey, valorCobrado, "WA RESOLVE", "MOSSORO", txid);
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box" style="text-align:center;">
+      <h3 style="color:var(--navy); margin-bottom:6px;">💳 Pagamento PIX - ${o.id}</h3>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Valor com preenchimento automático: <strong style="color:var(--green); font-size:16px;">${formatBRL(valorCobrado)}</strong></p>
+      
+      <div id="pixQrContainer" style="display:flex; justify-content:center; margin:16px auto; background:#fff; padding:10px; border-radius:10px; border:1px solid #cbd5e1; width:220px; height:220px;"></div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-family:monospace; font-size:11px; word-break:break-all; max-height:70px; overflow-y:auto; margin-bottom:12px; color:#334155;">
+        ${pixPayload}
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:center;">
+        <button class="primary" style="background:#16a34a;" onclick="copyPixDirect('${pixPayload}')">📋 Copiar Código Pix</button>
+        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  setTimeout(() => {
+    new QRCode(document.getElementById("pixQrContainer"), {
+      text: pixPayload,
+      width: 200,
+      height: 200,
+      colorDark: "#102b50",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }, 60);
 }
 
 function renderHistory() {
@@ -1449,6 +1622,8 @@ function renderClientView(id) {
       brand: data.marca || "",
       serialNumber: data.numero_serie || "",
       sealNumber: data.numero_lacre || "",
+      checklistDamages: data.avarias_iniciais || "",
+      accessoriesLeft: data.acessorios_deixados || "",
       problem: data.defeito || data.descricao || "",
       diagnosis: data.diagnostico || "",
       price: Number(data.orcamento) || 0,
@@ -1483,15 +1658,28 @@ function displayClientOrderPage(o) {
       <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
     </div>` : '';
 
-  const pixBlockHtml = companyPixKey ? `
-    <div style="margin-top:16px; background:#f0fdf4; border:1px dashed #16a34a; border-radius:10px; padding:14px; text-align:center;">
-      <p style="font-size:13px; font-weight:700; color:#166534; margin-bottom:6px;">💳 Pagar Sinal ou Valor via PIX</p>
-      <div style="background:#fff; border:1px solid #bbf7d0; border-radius:6px; padding:8px; font-family:monospace; font-size:14px; color:#14532d; word-break:break-all; margin-bottom:8px;">
-        ${companyPixKey}
+  const preco = Number(o.price || 0);
+  const entrada = Number(o.entryFee || 0);
+  const restante = Math.max(0, preco - entrada);
+  const valorPixAutomatico = restante > 0 ? restante : preco;
+
+  let pixBlockHtml = '';
+  let pixPayloadClient = '';
+  if (companyPixKey) {
+    const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
+    pixPayloadClient = gerarPixPayload(companyPixKey, valorPixAutomatico, "WA RESOLVE", "MOSSORO", txid);
+
+    pixBlockHtml = `
+      <div style="margin-top:16px; background:#f0fdf4; border:1px dashed #16a34a; border-radius:12px; padding:16px; text-align:center;">
+        <p style="font-size:14px; font-weight:700; color:#166534; margin-bottom:4px;">💳 Pagar via PIX com Valor Preenchido</p>
+        <p style="font-size:12px; color:#15803d; margin-bottom:10px;">Valor automático: <strong>${formatBRL(valorPixAutomatico)}</strong></p>
+        
+        <div id="clientPixQrContainer" style="display:flex; justify-content:center; margin:0 auto 12px; background:#fff; padding:10px; border-radius:10px; border:1px solid #bbf7d0; width:190px; height:190px;"></div>
+
+        <button class="primary" style="font-size:13px; padding:10px 18px; background:#16a34a; width:100%;" onclick="copyPixDirect('${pixPayloadClient}')">📋 Copiar Código PIX (Copia e Cola)</button>
       </div>
-      <button class="primary" style="font-size:12px; padding:6px 14px; background:#16a34a;" onclick="copyPixDirect('${companyPixKey}')">📋 Copiar Chave PIX</button>
-    </div>
-  ` : '';
+    `;
+  }
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
   const actionsHtml = isApproved ? `
@@ -1548,17 +1736,33 @@ function displayClientOrderPage(o) {
       ${actionsHtml}
     </div>
   `;
+
+  if (pixPayloadClient) {
+    setTimeout(() => {
+      const qrEl = document.getElementById("clientPixQrContainer");
+      if (qrEl) {
+        new QRCode(qrEl, {
+          text: pixPayloadClient,
+          width: 170,
+          height: 170,
+          colorDark: "#102b50",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    }, 60);
+  }
 }
 
 function copyPixDirect(key) {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(key).then(() => {
-      alert("✅ Chave PIX copiada para a área de transferência!");
+      alert("✅ Código PIX copiado com sucesso! Abra o app do seu banco e escolha 'PIX Copia e Cola'.");
     }).catch(() => {
-      prompt("Copie a chave PIX abaixo:", key);
+      prompt("Copie o código PIX abaixo:", key);
     });
   } else {
-    prompt("Copie a chave PIX abaixo:", key);
+    prompt("Copie o código PIX abaixo:", key);
   }
 }
 
@@ -1783,6 +1987,8 @@ async function saveOrder(e) {
   const brand = document.getElementById("osBrand").value.trim();
   const serialNumber = document.getElementById("osSerial") ? document.getElementById("osSerial").value.trim() : "";
   const sealNumber = document.getElementById("osSeal") ? document.getElementById("osSeal").value.trim() : "";
+  const checklistDamages = document.getElementById("osChecklistDamages") ? document.getElementById("osChecklistDamages").value.trim() : "";
+  const accessoriesLeft = document.getElementById("osAccessoriesLeft") ? document.getElementById("osAccessoriesLeft").value.trim() : "";
   const problem = document.getElementById("osProblem").value.trim();
   const diagnosis = document.getElementById("osDiagnosis").value.trim();
   const price = parseFloat(document.getElementById("osPrice").value) || 0;
@@ -1815,6 +2021,8 @@ async function saveOrder(e) {
         marca: brand,
         numero_serie: serialNumber,
         numero_lacre: sealNumber,
+        avarias_iniciais: checklistDamages,
+        acessorios_deixados: accessoriesLeft,
         defeito: problem,
         diagnostico: diagnosis,
         orcamento: price,
@@ -1833,8 +2041,8 @@ async function saveOrder(e) {
       const dbId = osRes.data.id;
       const createdId = "WR-" + dbId;
       orders.push({
-        id: createdId, dbId, name, phone, appliance, brand, serialNumber, sealNumber, problem, diagnosis,
-        price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed,
+        id: createdId, dbId, name, phone, appliance, brand, serialNumber, sealNumber, checklistDamages, accessoriesLeft,
+        problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed,
         dias_garantia: warrantyDays, data_conclusao: null,
         created: new Date().toISOString(), localOnly: false
       });
@@ -1856,8 +2064,8 @@ async function saveOrder(e) {
 
   const shortId = getNextShortOrderId();
   orders.push({ 
-    id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, problem, diagnosis,
-    price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed, 
+    id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, checklistDamages, accessoriesLeft,
+    problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed, 
     dias_garantia: warrantyDays, data_conclusao: null,
     created: new Date().toISOString(), localOnly: true 
   });
@@ -1905,6 +2113,16 @@ function editOrder(id) {
           <div class="field">
             <label>Nº do Lacre de Garantia</label>
             <input id="editOsSeal" value="${o.sealNumber || ''}">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label>🔍 Checklist de Entrada (Avarias prévias)</label>
+            <input id="editOsChecklist" value="${o.checklistDamages || ''}">
+          </div>
+          <div class="field">
+            <label>🔌 Acessórios Deixados</label>
+            <input id="editOsAccessories" value="${o.accessoriesLeft || ''}">
           </div>
         </div>
         <div class="field">
@@ -1982,6 +2200,8 @@ async function updateOrder(e, id) {
   o.brand = document.getElementById("editOsBrand").value.trim();
   o.serialNumber = document.getElementById("editOsSerial").value.trim();
   o.sealNumber = document.getElementById("editOsSeal").value.trim();
+  o.checklistDamages = document.getElementById("editOsChecklist").value.trim();
+  o.accessoriesLeft = document.getElementById("editOsAccessories").value.trim();
   o.problem = document.getElementById("editOsProblem").value.trim();
   o.diagnosis = document.getElementById("editOsDiagnosis").value.trim();
   o.price = parseFloat(document.getElementById("editOsPrice").value) || 0;
@@ -2001,6 +2221,8 @@ async function updateOrder(e, id) {
         marca: o.brand,
         numero_serie: o.serialNumber,
         numero_lacre: o.sealNumber,
+        avarias_iniciais: o.checklistDamages,
+        acessorios_deixados: o.accessoriesLeft,
         defeito: o.problem,
         diagnostico: o.diagnosis,
         orcamento: o.price,
@@ -2062,6 +2284,19 @@ function printOrderSheet(id) {
         <tr>
           <td style="padding:6px; border:1px solid #ddd;"><strong>SELO / LACRE:</strong> ${o.sealNumber || 'Sem lacre registrado'}</td>
           <td style="padding:6px; border:1px solid #ddd;"><strong>STATUS:</strong> ${o.status}</td>
+        </tr>
+      </table>
+
+      <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
+        <tr>
+          <td style="padding:6px; border:1px solid #ddd; width:50%;">
+            <strong>Avarias Prévias Constatadas:</strong><br>
+            <span style="color:#555;">${o.checklistDamages || 'Nenhuma avaria aparente informada no ato da entrada'}</span>
+          </td>
+          <td style="padding:6px; border:1px solid #ddd; width:50%;">
+            <strong>Acessórios Deixados na Oficina:</strong><br>
+            <span style="color:#555;">${o.accessoriesLeft || 'Aparelho entregue avulso sem acessórios'}</span>
+          </td>
         </tr>
       </table>
 
@@ -2189,7 +2424,7 @@ function openKeyModal() {
       <div class="field">
         <label>💳 Chave PIX da Empresa (CPF, CNPJ, Celular ou Aleatória)</label>
         <input id="modalPixInput" placeholder="Ex: 84999990000 ou chave@pix.com" value="${companyPixKey}">
-        <small style="color:var(--muted); font-size:11px;">Essa chave aparecerá para o cliente pagar pelo link público.</small>
+        <small style="color:var(--muted); font-size:11px;">Essa chave gerará automaticamente o QR Code PIX com o valor exato da OS.</small>
       </div>
 
       <div class="field">
