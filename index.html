@@ -248,7 +248,6 @@
     .table-custom th { background: #102b50; color: #fff; font-weight: 700; }
     .table-custom tr:nth-child(even) { background: #f8fafc; }
 
-    /* Folha de Impressão */
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
@@ -314,6 +313,34 @@ function getNextShortOrderId() {
     }
   });
   return "WR-" + (maxNum + 1);
+}
+
+// Compressão inteligente de foto para não estourar memória do navegador / banco
+function compressAndResizeImage(file, maxWidth = 1000, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = event => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = error => reject(error);
+    };
+    reader.onerror = error => reject(error);
+  });
 }
 
 // Geração de BR Code / EMV PIX padrão Banco Central
@@ -398,7 +425,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   } catch(err) {
     console.error("Erro no DOMContentLoaded:", err);
-    document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:80px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Painel WA Resolve</h2><p style="color:var(--muted); margin-bottom:20px;">Carregando painel de atendimento...</p><a href="?" style="display:inline-block; background:var(--blue); color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700;">Acessar Painel Principal</a></div>';
+    document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:80px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Painel WA Resolve</h2><p style="color:var(--muted);">Carregando...</p><a href="?" style="display:inline-block; background:var(--blue); color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700;">Acessar Painel Principal</a></div>';
     setTimeout(() => { window.location.href = window.location.pathname; }, 1500);
   }
 });
@@ -440,7 +467,8 @@ function syncFromSupabase() {
         refusalFee: Number(d.taxa_recusa) || 0,
         entryFee: Number(d.valor_entrada) || 0,
         paymentMethod: d.forma_pagamento || "Pix",
-        photoUrl: d.foto_url || "",
+        photoUrlEntry: d.foto_entrada || d.foto_url || "",
+        photoUrlDefect: d.foto_defeito || "",
         status: d.status || (Number(d.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
         created: d.created_at,
         data_conclusao: d.data_conclusao || (d.status === "Concluído" || d.status === "Pronto para retirada" ? (d.created_at ? d.created_at.split('T')[0] : '') : ''),
@@ -609,18 +637,22 @@ function renderOrders() {
               <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
             </div>
           </div>
-          ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
+
+          <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+            ${o.photoUrlEntry ? `<a href="${o.photoUrlEntry}" target="_blank" style="font-size:12px; color:var(--navy); font-weight:700; background:#e2e8f0; padding:3px 8px; border-radius:6px; text-decoration:none;">📷 Ver Foto de Entrada</a>` : ''}
+            ${o.photoUrlDefect ? `<a href="${o.photoUrlDefect}" target="_blank" style="font-size:12px; color:var(--red); font-weight:700; background:#fee2e2; padding:3px 8px; border-radius:6px; text-decoration:none;">🔬 Ver Foto do Defeito</a>` : ''}
+          </div>
+
           <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
             ${o.status === "Em análise técnica" || Number(o.price || 0) === 0 ? `
-              <button class="gold" style="font-size:12px; padding:6px 12px;" onclick="editOrder('${o.id}')">🔍 Lançar Orçamento de Bancada</button>
+              <button class="gold" style="font-size:12px; padding:6px 12px;" onclick="editOrder('${o.id}')">🔍 Lançar Orçamento & Foto Defeito</button>
             ` : `
-              <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
+              <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrlDefect || o.photoUrlEntry || '')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
             `}
             <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px; background:#0284c7;" onclick="openQuickMessagesModal('${o.id}')">💬 Mensagens Rápidas</button>
             ${Number(o.price || 0) > 0 ? `<button class="secondary" style="font-size:12px; padding:6px 10px; background:#10b981; color:#fff;" onclick="openPixQrModal('${o.id}')">💳 QR Code PIX</button>` : ''}
             <button class="secondary" style="font-size:12px; padding:6px 10px; background:#eff6ff; color:#175ba4;" onclick="printOrderSheet('${o.id}')">🖨️ Comprovante / Termo</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Foto</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
             <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
@@ -712,8 +744,20 @@ function renderOrders() {
             <label>Defeito Relatado pelo Cliente *</label>
             <textarea id="osProblem" rows="2" required placeholder="O que o cliente informou sobre o defeito?"></textarea>
           </div>
+
+          <!-- FOTO 1: ENTRADA DO APARELHO -->
+          <div class="field" style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:10px;">
+            <label>📷 Foto do Equipamento no Balcão (Estado de Entrada)</label>
+            <input type="file" id="osFileInputEntry" accept="image/*" capture="environment" onchange="handleEntryImageUpload(event)" style="padding:6px; background:#fff; border:1px solid #cbd5e1;">
+            <input type="hidden" id="osPhotoEntry">
+            <div id="previewEntryContainer" style="margin-top:8px; display:none; text-align:center;">
+              <img id="imagePreviewEntry" src="" alt="Foto de Entrada" style="max-height:120px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid var(--line);">
+            </div>
+            <small style="font-size:11px; color:var(--muted);">Tire a foto mostrando o aparelho inteiro e avarias para segurança do cliente e da oficina.</small>
+          </div>
+
           <div class="field">
-            <label>Diagnóstico Técnico / Solução <span style="font-weight:400; color:var(--muted);">(Opcional na entrada - preencha após abrir na bancada)</span></label>
+            <label>Diagnóstico Técnico / Solução <span style="font-weight:400; color:var(--muted);">(Opcional na entrada - preencha na bancada)</span></label>
             <textarea id="osDiagnosis" rows="2" placeholder="Deixe em branco se o aparelho acabou de entrar para análise"></textarea>
           </div>
           <div class="three">
@@ -751,16 +795,6 @@ function renderOrders() {
             <label>📦 Selecionar Peças Utilizadas (Preencher na bancada)</label>
             ${partsPickerHtml}
           </div>
-          <div class="field">
-            <label>📷 Anexar Foto do Equipamento / Defeito do Cliente</label>
-            <input type="file" id="osFile" accept="image/*" onchange="handleImageUpload(event)" style="padding:8px; background:#f8fafc; border:1px dashed #cbd5e1;">
-            <input type="hidden" id="osPhoto" placeholder="Link ou imagem da foto">
-            <div id="previewContainer" style="margin-top:8px; display:none; text-align:center; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid var(--line);">
-              <img id="imagePreview" src="" alt="Pré-visualização" style="max-height:120px; max-width:100%; border-radius:6px; object-fit:contain;">
-            </div>
-            <small style="font-size:11px; color:var(--muted);">Escolha uma foto ou cole o link abaixo:</small>
-            <input id="osPhotoUrlDirect" placeholder="Ou cole a URL da imagem aqui" style="margin-top:4px;" oninput="document.getElementById('osPhoto').value=this.value">
-          </div>
           <button type="submit" class="primary" style="width:100%; margin-top:8px;">📥 Dar Entrada no Equipamento / Salvar Ordem</button>
         </form>
       </div>
@@ -773,6 +807,36 @@ function renderOrders() {
       </div>
     </div>
   `;
+}
+
+// Upload e compressão da Foto 1 (Entrada)
+async function handleEntryImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const compressedBase64 = await compressAndResizeImage(file);
+    document.getElementById("osPhotoEntry").value = compressedBase64;
+    const preview = document.getElementById("imagePreviewEntry");
+    preview.src = compressedBase64;
+    document.getElementById("previewEntryContainer").style.display = "block";
+  } catch(err) {
+    console.error("Erro ao comprimir imagem:", err);
+  }
+}
+
+// Upload e compressão da Foto 2 (Defeito/Bancada no Modal de Edição)
+async function handleDefectImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const compressedBase64 = await compressAndResizeImage(file);
+    document.getElementById("editOsPhotoDefect").value = compressedBase64;
+    const preview = document.getElementById("editImagePreviewDefect");
+    preview.src = compressedBase64;
+    document.getElementById("editPreviewDefectContainer").style.display = "block";
+  } catch(err) {
+    console.error("Erro ao comprimir imagem de defeito:", err);
+  }
 }
 
 function openQuickMessagesModal(id) {
@@ -1240,21 +1304,6 @@ function changeBalancePeriod(period) {
   renderDashboard();
 }
 
-function handleImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const base64String = e.target.result;
-    document.getElementById("osPhoto").value = base64String;
-    document.getElementById("osPhotoUrlDirect").value = "[Imagem anexada do aparelho]";
-    const preview = document.getElementById("imagePreview");
-    preview.src = base64String;
-    document.getElementById("previewContainer").style.display = "block";
-  };
-  reader.readAsDataURL(file);
-}
-
 function renderClients() {
   let clientsListHtml = "";
   if (clients.length === 0) {
@@ -1588,7 +1637,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
 
 💰 *Valor:* R$ ${Number(price).toFixed(2)}
 ${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
-👉 *Clique no link abaixo para ver a foto do equipamento, detalhes, pagar sinal via PIX e aprovar online:*
+👉 *Clique no link abaixo para ver a foto do defeito apurado na bancada, detalhes e aprovar online:*
 ${urlOs}`;
 
   const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
@@ -1626,14 +1675,14 @@ function renderClientView(id) {
 
   const cleanId = String(id || "").replace(/\D/g, "");
   if (!supabaseClient || !cleanId) {
-    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Ordem indisponível</h2><p style="color:var(--muted);">Não foi possível conectar à base de dados ou o número da ordem é inválido. Entre em contato com a WA Resolve.</p></div>';
+    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Ordem indisponível</h2><p style="color:var(--muted);">Entre em contato com a WA Resolve.</p></div>';
     return;
   }
 
   supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
     if (error || !data) {
       console.error("Falha ao consultar orçamento público:", error);
-      app.innerHTML = '<div style="max-width:520px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Não foi possível localizar este orçamento</h2><p style="color:var(--muted);">Confira se o link está correto. Se o problema continuar, entre em contato com a WA Resolve.</p></div>';
+      app.innerHTML = '<div style="max-width:520px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Orçamento não localizado</h2></div>';
       return;
     }
 
@@ -1654,14 +1703,15 @@ function renderClientView(id) {
       refusalFee: Number(data.taxa_recusa) || 0,
       entryFee: Number(data.valor_entrada) || 0,
       paymentMethod: data.forma_pagamento || "Pix",
-      photoUrl: data.foto_url || "",
+      photoUrlEntry: data.foto_entrada || data.foto_url || "",
+      photoUrlDefect: data.foto_defeito || "",
       status: data.status || (Number(data.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
       partsUsed: data.pecas_usadas || []
     };
     displayClientOrderPage(o);
   }).catch(error => {
     console.error("Erro inesperado ao carregar orçamento:", error);
-    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Erro ao carregar orçamento</h2><p style="color:var(--muted);">Tente novamente ou fale com a WA Resolve.</p></div>';
+    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Erro ao carregar orçamento</h2></div>';
   });
 }
 
@@ -1671,10 +1721,15 @@ function displayClientOrderPage(o) {
     ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>`
     : '';
 
-  const photoHtml = o.photoUrl ? `
+  // Fotos exibidas para o cliente: Defeito em destaque, ou Entrada caso ainda não haja foto do defeito
+  const fotoExibicao = o.photoUrlDefect || o.photoUrlEntry;
+  const photoHtml = fotoExibicao ? `
     <div style="margin:16px 0; text-align:center; background:#f8fafc; border-radius:12px; padding:12px; border:1px solid var(--line);">
-      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">📷 Foto do Equipamento / Defeito</p>
-      <img src="${o.photoUrl}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">
+        ${o.photoUrlDefect ? '🔬 Foto do Defeito Constatado em Bancada' : '📷 Foto do Equipamento no Recebimento'}
+      </p>
+      <img src="${fotoExibicao}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+      ${o.photoUrlEntry && o.photoUrlDefect ? `<div style="margin-top:6px;"><a href="${o.photoUrlEntry}" target="_blank" style="font-size:11px; color:var(--blue); font-weight:600;">Ver também foto de entrada no balcão</a></div>` : ''}
     </div>` : '';
 
   const logoHeader = companyLogoUrl ? `
@@ -1710,8 +1765,8 @@ function displayClientOrderPage(o) {
   if (o.status === "Em análise técnica" || preco === 0) {
     actionsHtml = `
       <div style="margin-top:20px; background:#fef9c3; border:1px solid #fde047; border-radius:10px; padding:16px; text-align:center;">
-        <h3 style="color:#854d0e; font-size:16px; margin-bottom:4px;">🔍 Equipamento em Análise de Bancada</h3>
-        <p style="color:#a16207; font-size:14px;">Seu aparelho foi recebido e está sendo avaliado pelo técnico. O orçamento detalhado será disponibilizado em breve neste mesmo link.</p>
+        <h3 style="color:#854d0e; font-size:16px; margin-bottom:4px;">🔍 Equipamento em Análise Técnica</h3>
+        <p style="color:#a16207; font-size:14px;">Seu aparelho foi recebido e está em testes em bancada. O orçamento detalhado e a foto do defeito serão atualizados neste link assim que a análise for finalizada.</p>
       </div>
       ${contactCompanyBtn}
     `;
@@ -1756,7 +1811,7 @@ function displayClientOrderPage(o) {
       <div style="border-top:1px solid var(--line); padding-top:16px;">
         ${o.partsUsed && o.partsUsed.length > 0 ? `
           <div style="margin-bottom:14px; background:#f8fafc; border-radius:10px; padding:12px; border:1px solid var(--line);">
-            <p style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">🛠️ Peças / Componentes Utilizados no Reparo:</p>
+            <p style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">🛠️ Peças / Componentes Necessários:</p>
             <ul style="margin-left:18px; font-size:13px; color:#334155;">
               ${o.partsUsed.map(pu => `<li>${pu.nome}</li>`).join('')}
             </ul>
@@ -1851,7 +1906,7 @@ function renderClientVisitView(id) {
           return;
         }
       }
-      document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.05);"><h2 style="color:var(--navy); margin-bottom:10px;">Visita não encontrada</h2><p style="color:var(--muted);">Verifique o link enviado ou entre em contato com a assistência técnica.</p></div>';
+      document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Visita não encontrada</h2></div>';
     });
     return;
   }
@@ -2034,7 +2089,8 @@ async function saveOrder(e) {
   const entryFee = parseFloat(document.getElementById("osEntryFee").value) || 0;
   const paymentMethod = document.getElementById("osPaymentMethod").value;
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
-  const photoUrl = document.getElementById("osPhoto").value.trim();
+  const photoUrlEntry = document.getElementById("osPhotoEntry") ? document.getElementById("osPhotoEntry").value.trim() : "";
+  const photoUrlDefect = "";
   const warrantyDays = parseInt(document.getElementById("osWarrantyDays").value) || 90;
   const partsUsed = [...currentOsParts];
 
@@ -2070,7 +2126,8 @@ async function saveOrder(e) {
         valor_entrada: entryFee,
         forma_pagamento: paymentMethod,
         taxa_recusa: refusalFee,
-        foto_url: photoUrl,
+        foto_entrada: photoUrlEntry,
+        foto_defeito: photoUrlDefect,
         status: status,
         pecas_usadas: partsUsed,
         dias_garantia: warrantyDays
@@ -2083,7 +2140,7 @@ async function saveOrder(e) {
       const createdId = "WR-" + dbId;
       orders.push({
         id: createdId, dbId, name, phone, appliance, brand, serialNumber, sealNumber, checklistDamages, accessoriesLeft,
-        problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed,
+        problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrlEntry, photoUrlDefect, status, partsUsed,
         dias_garantia: warrantyDays, data_conclusao: null,
         created: new Date().toISOString(), localOnly: false
       });
@@ -2106,7 +2163,7 @@ async function saveOrder(e) {
   const shortId = getNextShortOrderId();
   orders.push({ 
     id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, checklistDamages, accessoriesLeft,
-    problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrl, status, partsUsed, 
+    problem, diagnosis, price, entryFee, paymentMethod, refusalFee, photoUrlEntry, photoUrlDefect, status, partsUsed, 
     dias_garantia: warrantyDays, data_conclusao: null,
     created: new Date().toISOString(), localOnly: true 
   });
@@ -2124,7 +2181,7 @@ function editOrder(id) {
   modal.className = "modal";
   modal.innerHTML = `
     <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Editar / Lançar Orçamento (${o.id})</h3>
+      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Bancada: Lançar Diagnóstico / Orçamento (${o.id})</h3>
       <form onsubmit="updateOrder(event, '${o.id}')">
         <div class="two">
           <div class="field">
@@ -2156,24 +2213,27 @@ function editOrder(id) {
             <input id="editOsSeal" value="${o.sealNumber || ''}">
           </div>
         </div>
-        <div class="two">
-          <div class="field">
-            <label>🔍 Checklist de Entrada (Avarias prévias)</label>
-            <input id="editOsChecklist" value="${o.checklistDamages || ''}">
-          </div>
-          <div class="field">
-            <label>🔌 Acessórios Deixados</label>
-            <input id="editOsAccessories" value="${o.accessoriesLeft || ''}">
-          </div>
-        </div>
         <div class="field">
-          <label>Defeito Relatado</label>
+          <label>Defeito Relatado na Entrada</label>
           <textarea id="editOsProblem" rows="2">${o.problem || ''}</textarea>
         </div>
+        
         <div class="field">
-          <label>Diagnóstico Técnico (O que precisa / Defeito real apurado)</label>
+          <label>🔬 Diagnóstico Técnico (O que foi apurado na bancada)</label>
           <textarea id="editOsDiagnosis" rows="2" placeholder="Descreva os componentes defeituosos e serviços a realizar">${o.diagnosis || ''}</textarea>
         </div>
+
+        <!-- FOTO 2: DEFEITO ENCONTRADO EM BANCADA -->
+        <div class="field" style="background:#fef2f2; border:1px dashed #f87171; padding:12px; border-radius:10px;">
+          <label style="color:#991b1b;">🔬 Anexar Foto do Defeito / Componente Queimado (Bancada)</label>
+          <input type="file" id="editFileInputDefect" accept="image/*" capture="environment" onchange="handleDefectImageUpload(event)" style="padding:6px; background:#fff; border:1px solid #fca5a5;">
+          <input type="hidden" id="editOsPhotoDefect" value="${o.photoUrlDefect || ''}">
+          <div id="editPreviewDefectContainer" style="margin-top:8px; text-align:center; ${o.photoUrlDefect ? 'display:block;' : 'display:none;'}">
+            <img id="editImagePreviewDefect" src="${o.photoUrlDefect || ''}" alt="Foto do Defeito" style="max-height:130px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid #f87171;">
+          </div>
+          <small style="font-size:11px; color:#7f1d1d;">Essa é a foto que o cliente verá no link junto com o orçamento aprovável.</small>
+        </div>
+
         <div class="three">
           <div class="field">
             <label>Valor Orçamento (R$)</label>
@@ -2242,10 +2302,9 @@ async function updateOrder(e, id) {
   o.brand = document.getElementById("editOsBrand").value.trim();
   o.serialNumber = document.getElementById("editOsSerial").value.trim();
   o.sealNumber = document.getElementById("editOsSeal").value.trim();
-  o.checklistDamages = document.getElementById("editOsChecklist").value.trim();
-  o.accessoriesLeft = document.getElementById("editOsAccessories").value.trim();
   o.problem = document.getElementById("editOsProblem").value.trim();
   o.diagnosis = document.getElementById("editOsDiagnosis").value.trim();
+  o.photoUrlDefect = document.getElementById("editOsPhotoDefect").value.trim();
   
   const rawPrice = document.getElementById("editOsPrice").value;
   o.price = rawPrice ? parseFloat(rawPrice) : 0;
@@ -2256,7 +2315,6 @@ async function updateOrder(e, id) {
   o.data_conclusao = document.getElementById("editOsWarrantyStart").value || null;
   
   let newStatus = document.getElementById("editOsStatus").value;
-  // Se o usuário lançou um valor e o status ainda era "Em análise técnica", adianta para "Aguardando aprovação"
   if (newStatus === "Em análise técnica" && o.price > 0) {
     newStatus = "Aguardando aprovação";
   }
@@ -2271,14 +2329,13 @@ async function updateOrder(e, id) {
         marca: o.brand,
         numero_serie: o.serialNumber,
         numero_lacre: o.sealNumber,
-        avarias_iniciais: o.checklistDamages,
-        acessorios_deixados: o.accessoriesLeft,
         defeito: o.problem,
         diagnostico: o.diagnosis,
         orcamento: o.price,
         valor_entrada: o.entryFee,
         forma_pagamento: o.paymentMethod,
         taxa_recusa: o.refusalFee,
+        foto_defeito: o.photoUrlDefect,
         dias_garantia: o.dias_garantia,
         data_conclusao: o.data_conclusao,
         status: o.status
@@ -2289,7 +2346,7 @@ async function updateOrder(e, id) {
   }
 
   document.querySelector(".modal").remove();
-  alert("✅ Ordem de serviço atualizada com sucesso!");
+  alert("✅ Ordem de serviço e foto do defeito atualizadas!");
   renderDashboard();
 }
 
@@ -2693,21 +2750,6 @@ function changePin() {
     adminPin = novo.trim();
     localStorage.setItem("wa_admin_pin", adminPin);
     alert("Senha alterada com sucesso!");
-  }
-}
-
-function changeOrderPhoto(id) {
-  const o = orders.find(item => item.id === id);
-  if (!o) return;
-  const novoLink = prompt("Cole o link da foto do equipamento / defeito:", o.photoUrl || "");
-  if (novoLink !== null) {
-    o.photoUrl = novoLink.trim();
-    localStorage.setItem("wa_orders", JSON.stringify(orders));
-    if (supabaseClient && o.dbId) {
-      supabaseClient.from("ordens_servico").update({ foto_url: o.photoUrl }).eq("id", o.dbId);
-    }
-    alert("Foto atualizada com sucesso!");
-    renderDashboard();
   }
 }
 </script>
