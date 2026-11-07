@@ -1290,6 +1290,10 @@ function renderBalance() {
               <tr><td>Faturamento Total Bruto</td><td>${formatBRL(totalFaturamento)}</td><td>100,0%</td></tr>
               <tr><td>Custo Total de Peças</td><td>${formatBRL(totalCustoPecas)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
               <tr><td><strong>Lucro Líquido do Técnico</strong></td><td><strong style="color:var(--green);">${formatBRL(lucroLiquido)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1428,7 +1432,7 @@ function renderVisits() {
           <div class="visit-detail"><span>●</span><span><strong>Equipamento:</strong> ${v.aparelho_motivo || "Não informado"}</span></div>
           <div class="visit-detail"><span>●</span><span>${v.endereco || "Endereço não informado"}</span></div>
           ${v.observacoes ? `<p style="font-size:12px;color:#64748b;margin-top:8px;"><em>Observações: ${v.observacoes}</em></p>` : ''}
-<tr>          ${v.motivo_recusa ? `<p style="font-size:12px;color:var(--red);margin-top:8px;font-weight:700;">⚠ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
+          ${v.motivo_recusa ? `<p style="font-size:12px;color:var(--red);margin-top:8px;font-weight:700;">⚠ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
           <div class="visit-actions">
             <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">📲 Enviar Coleta no WhatsApp</button>
             <button class="secondary" onclick="openMaps('${encodeURIComponent(v.endereco || '')}')">🗺️ Rota no Maps</button>
@@ -1567,7 +1571,7 @@ function changeVisitStatus(id) {
 }
 
 async function deleteVisit(id) {
-  if (!confirm(`⚠️ Deseja realmente excluir esta visita agendada?`)) নম্বর;
+  if (!confirm(`⚠️ Deseja realmente excluir esta visita agendada?`)) return;
   const v = visits.find(item => String(item.id) === String(id));
   visits = visits.filter(item => String(item.id) !== String(id));
   localStorage.setItem("wa_visits", JSON.stringify(visits));
@@ -1706,7 +1710,7 @@ function renderClientView(id) {
     };
     displayClientOrderPage(o);
   }).catch(error => {
-    console.error("Erro inesperado ao carregar orçamento:", error);
+    console.error("Erro novo inesperado:", error);
     app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Erro ao carregar orçamento</h2></div>';
   });
 }
@@ -1778,7 +1782,7 @@ function displayClientOrderPage(o) {
     actionsHtml = `
       <div style="margin-top:20px; display:grid; gap:10px;">
         <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
-        <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+        <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
         ${pixBlockHtml}
         ${contactCompanyBtn}
       </div>
@@ -1876,7 +1880,7 @@ async function clientActionOrder(id, newStatus, dbId) {
 function renderClientVisitView(id) {
   document.getElementById("app").innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando visita...</h2></div>';
 
-  let v = visits.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
+  let v = visits.find(item =>String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
 
   if (!v && supabaseClient) {
     supabaseClient.from("visitas").select("*").then(({data}) => {
@@ -1971,7 +1975,7 @@ function displayClientVisitPage(v) {
 }
 
 function confirmarColetaCliente(id, dbId) {
-  const v = visits.find(item => item.id === id);
+  const v = visits.find(item => String(item.id) === String(id));
   if (v) {
     v.status = "Confirmada";
     localStorage.setItem("wa_visits", JSON.stringify(visits));
@@ -1987,7 +1991,7 @@ function confirmarColetaCliente(id, dbId) {
 function recusarColetaCliente(id, dbId) {
   const motivo = prompt("Por favor, informe o motivo ou sugira uma nova data/horário:");
   if (motivo !== null) {
-    const v = visits.find(item => item.id === id);
+    const v = visits.find(item => String(item.id) === String(id));
     if (v) {
       v.status = "Reagendar / Não autorizado";
       v.motivo_recusa = motivo || "Cliente não informou o motivo";
