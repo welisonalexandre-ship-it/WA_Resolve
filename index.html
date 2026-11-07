@@ -196,6 +196,7 @@
       background: #e2e8f0;
       color: var(--navy);
     }
+    .tag.Em_análise_técnica { background: #fef08a; color: #854d0e; }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
     .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
     .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada, .tag.Realizada, .tag.Entregue { background: #d1fae5; color: #065f46; }
@@ -440,7 +441,7 @@ function syncFromSupabase() {
         entryFee: Number(d.valor_entrada) || 0,
         paymentMethod: d.forma_pagamento || "Pix",
         photoUrl: d.foto_url || "",
-        status: d.status || "Aguardando aprovação",
+        status: d.status || (Number(d.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
         created: d.created_at,
         data_conclusao: d.data_conclusao || (d.status === "Concluído" || d.status === "Pronto para retirada" ? (d.created_at ? d.created_at.split('T')[0] : '') : ''),
         dias_garantia: d.dias_garantia !== undefined && d.dias_garantia !== null ? Number(d.dias_garantia) : 90
@@ -572,6 +573,7 @@ function renderDashboard() {
 }
 
 function renderOrders() {
+  const inAnalysis = orders.filter(o => o.status === "Em análise técnica").length;
   const awaiting = orders.filter(o => o.status === "Aguardando aprovação").length;
   const inProgress = orders.filter(o => o.status.includes("Aprovado") || o.status === "Em conserto").length;
   const refused = orders.filter(o => o.status === "Não aprovado");
@@ -585,6 +587,7 @@ function renderOrders() {
       const entryFee = Number(o.entryFee || 0);
       const price = Number(o.price || 0);
       const remaining = Math.max(0, price - entryFee);
+      const valorExibicao = price > 0 ? formatBRL(price) : '<span style="color:#d97706; font-size:13px;">A definir (Em análise)</span>';
 
       ordersListHtml += `
         <div class="card-item visit-card">
@@ -597,20 +600,24 @@ function renderOrders() {
                 ${o.sealNumber ? ` | <span style="color:var(--blue); font-weight:700;">Lacre: ${o.sealNumber}</span>` : ''}
               </div>
               <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
-              ${entryFee > 0 ? `<div style="font-size:11px; color:var(--green); font-weight:600;">Sinal Pago: ${formatBRL(entryFee)} | Restante: ${formatBRL(remaining)} (${o.paymentMethod || 'Pix'})</div>` : ''}
+              ${entryFee > 0 ? `<div style="font-size:11px; color:var(--green); font-weight:600;">Sinal Pago: ${formatBRL(entryFee)} | Restante: ${price > 0 ? formatBRL(remaining) : 'A calcular'} (${o.paymentMethod || 'Pix'})</div>` : ''}
               ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
               ${o.data_conclusao ? `<div style="font-size:11px; color:var(--green); margin-top:2px;">🛡️ Concluído em: ${formatarDataBR(o.data_conclusao)} (${o.dias_garantia || 90}d garantia)</div>` : ''}
             </div>
             <div style="text-align:right;">
-              <strong style="color:var(--navy); font-size:16px;">${formatBRL(price)}</strong>
+              <strong style="color:var(--navy); font-size:16px;">${valorExibicao}</strong>
               <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
             </div>
           </div>
           ${o.photoUrl ? `<div style="margin-top:8px;"><a href="${o.photoUrl}" target="_blank" style="font-size:12px; color:var(--blue); font-weight:700;">📷 Ver Imagem do Defeito Cadastrada</a></div>` : ''}
           <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
+            ${o.status === "Em análise técnica" || Number(o.price || 0) === 0 ? `
+              <button class="gold" style="font-size:12px; padding:6px 12px;" onclick="editOrder('${o.id}')">🔍 Lançar Orçamento de Bancada</button>
+            ` : `
+              <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrl||'')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
+            `}
             <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px; background:#0284c7;" onclick="openQuickMessagesModal('${o.id}')">💬 Mensagens Rápidas</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px; background:#10b981; color:#fff;" onclick="openPixQrModal('${o.id}')">💳 QR Code PIX</button>
+            ${Number(o.price || 0) > 0 ? `<button class="secondary" style="font-size:12px; padding:6px 10px; background:#10b981; color:#fff;" onclick="openPixQrModal('${o.id}')">💳 QR Code PIX</button>` : ''}
             <button class="secondary" style="font-size:12px; padding:6px 10px; background:#eff6ff; color:#175ba4;" onclick="printOrderSheet('${o.id}')">🖨️ Comprovante / Termo</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
             <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderPhoto('${o.id}')">📷 Alterar Foto</button>
@@ -644,9 +651,10 @@ function renderOrders() {
   return `
     <div class="stats">
       <div class="stat"><span>Total de Ordens</span><strong>${orders.length}</strong></div>
+      <div class="stat" style="border-left-color: #f59e0b;"><span>Em Análise de Bancada</span><strong style="color:#d97706;">${inAnalysis}</strong></div>
       <div class="stat"><span>Aguardando Aprovação</span><strong>${awaiting}</strong></div>
       <div class="stat"><span>Em Conserto / Aprovados</span><strong>${inProgress}</strong></div>
-      <div class="stat" style="border-left:4px solid var(--red);">
+      <div class="stat" style="border-left-color: var(--red);">
         <span>Taxas de Não Aprovados</span>
         <strong style="color:var(--red);">R$ ${totalRefusalFees.toFixed(2)}</strong>
         <small style="font-size:11px; color:var(--muted);">${refused.length} orçamento(s) recusado(s)</small>
@@ -655,7 +663,7 @@ function renderOrders() {
     
     <div class="layout">
       <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📋</span> Cadastrar Nova Ordem</h2>
+        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📋</span> Entrada / Nova Ordem</h2>
         <form onsubmit="saveOrder(event)">
           <div class="two">
             <div class="field">
@@ -701,17 +709,17 @@ function renderOrders() {
             </div>
           </div>
           <div class="field">
-            <label>Defeito Relatado</label>
-            <textarea id="osProblem" rows="2" placeholder="O que o cliente informou?"></textarea>
+            <label>Defeito Relatado pelo Cliente *</label>
+            <textarea id="osProblem" rows="2" required placeholder="O que o cliente informou sobre o defeito?"></textarea>
           </div>
           <div class="field">
-            <label>Diagnóstico Técnico / O que precisa</label>
-            <textarea id="osDiagnosis" rows="2" placeholder="Peças, defeito real e serviços necessários"></textarea>
+            <label>Diagnóstico Técnico / Solução <span style="font-weight:400; color:var(--muted);">(Opcional na entrada - preencha após abrir na bancada)</span></label>
+            <textarea id="osDiagnosis" rows="2" placeholder="Deixe em branco se o aparelho acabou de entrar para análise"></textarea>
           </div>
           <div class="three">
             <div class="field">
-              <label>Valor Orçamento (R$) *</label>
-              <input id="osPrice" required type="number" step="0.01" placeholder="0.00">
+              <label>Valor Orçamento (R$) <span style="font-weight:400; color:var(--muted);">(Opcional)</span></label>
+              <input id="osPrice" type="number" step="0.01" placeholder="0.00 (a definir após avaliação)">
             </div>
             <div class="field">
               <label>Valor de Entrada / Sinal (R$)</label>
@@ -740,7 +748,7 @@ function renderOrders() {
             </div>
           </div>
           <div class="field">
-            <label>📦 Selecionar Peças Utilizadas no Equipamento (Sem exibir preço ao cliente)</label>
+            <label>📦 Selecionar Peças Utilizadas (Preencher na bancada)</label>
             ${partsPickerHtml}
           </div>
           <div class="field">
@@ -753,7 +761,7 @@ function renderOrders() {
             <small style="font-size:11px; color:var(--muted);">Escolha uma foto ou cole o link abaixo:</small>
             <input id="osPhotoUrlDirect" placeholder="Ou cole a URL da imagem aqui" style="margin-top:4px;" oninput="document.getElementById('osPhoto').value=this.value">
           </div>
-          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Cadastrar e Salvar Ordem</button>
+          <button type="submit" class="primary" style="width:100%; margin-top:8px;">📥 Dar Entrada no Equipamento / Salvar Ordem</button>
         </form>
       </div>
 
@@ -778,6 +786,13 @@ function openQuickMessagesModal(id) {
   const preco = Number(o.price || 0);
   const entrada = Number(o.entryFee || 0);
   const restante = Math.max(0, preco - entrada);
+
+  const msgEntrada = encodeURIComponent(
+`Olá, *${o.name}*! Tudo bem?
+Confirmamos a entrada do seu equipamento (*${o.appliance}* - ${o.brand || ''}) na assistência técnica *WA Resolve* sob a Ordem *${o.id}*.
+Defeito relatado: ${o.problem || 'Em análise'}
+Assim que o diagnóstico e orçamento forem concluídos na bancada, enviaremos os detalhes para sua aprovação!`
+  );
 
   const msgPronto = encodeURIComponent(
 `Olá, *${o.name}*! Tudo bem?
@@ -810,16 +825,20 @@ Qualquer dúvida, estamos à disposição!`
       <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Envie comunicados profissionais direto para o WhatsApp de <strong>${o.name}</strong>:</p>
 
       <div style="display:grid; gap:10px;">
+        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#475569; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgEntrada}', '_blank'); this.closest('.modal').remove();">
+          📥 1. Confirmar Entrada do Aparelho na Oficina
+        </button>
+
         <button class="whatsapp-btn" style="padding:12px; font-size:14px; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgPronto}', '_blank'); this.closest('.modal').remove();">
-          🟢 1. Aparelho Pronto para Retirada
+          🟢 2. Aparelho Pronto para Retirada
         </button>
 
         <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#d97706; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgAguardandoPeca}', '_blank'); this.closest('.modal').remove();">
-          🟡 2. Em Bancada - Aguardando Chegada de Peça
+          🟡 3. Em Bancada - Aguardando Chegada de Peça
         </button>
 
         <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#2563eb; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgCobranca}', '_blank'); this.closest('.modal').remove();">
-          🔵 3. Lembrete de Saldo Restante / Pagamento
+          🔵 4. Lembrete de Saldo Restante / Pagamento
         </button>
       </div>
 
@@ -845,6 +864,11 @@ function openPixQrModal(id) {
   const entrada = Number(o.entryFee || 0);
   const restante = Math.max(0, preco - entrada);
   const valorCobrado = restante > 0 ? restante : preco;
+
+  if (valorCobrado <= 0) {
+    alert("O orçamento desta ordem ainda está em análise (R$ 0,00). Defina o valor ao editar a ordem para gerar o QR Code.");
+    return;
+  }
 
   const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
   const pixPayload = gerarPixPayload(companyPixKey, valorCobrado, "WA RESOLVE", "MOSSORO", txid);
@@ -1151,7 +1175,7 @@ function renderBalance() {
   const lucroLiquido = totalFaturamento - totalCustoPecas;
 
   let statusRows = '';
-  const statuses = ["Aguardando aprovação", "Em conserto", "Pronto para retirada", "Concluído", "Não aprovado"];
+  const statuses = ["Em análise técnica", "Aguardando aprovação", "Em conserto", "Pronto para retirada", "Concluído", "Não aprovado"];
   statuses.forEach(st => {
     const count = filteredOrders.filter(o => o.status === st).length;
     const pct = totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(1) : "0.0";
@@ -1631,7 +1655,7 @@ function renderClientView(id) {
       entryFee: Number(data.valor_entrada) || 0,
       paymentMethod: data.forma_pagamento || "Pix",
       photoUrl: data.foto_url || "",
-      status: data.status || "Aguardando aprovação",
+      status: data.status || (Number(data.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
       partsUsed: data.pecas_usadas || []
     };
     displayClientOrderPage(o);
@@ -1665,7 +1689,7 @@ function displayClientOrderPage(o) {
 
   let pixBlockHtml = '';
   let pixPayloadClient = '';
-  if (companyPixKey) {
+  if (companyPixKey && valorPixAutomatico > 0) {
     const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
     pixPayloadClient = gerarPixPayload(companyPixKey, valorPixAutomatico, "WA RESOLVE", "MOSSORO", txid);
 
@@ -1682,21 +1706,34 @@ function displayClientOrderPage(o) {
   }
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
-  const actionsHtml = isApproved ? `
-    <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
-      <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Orçamento Aprovado - Conserto Iniciado!</h3>
-      <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipe técnica.</p>
-    </div>
-    ${pixBlockHtml}
-    ${contactCompanyBtn}
-  ` : `
-    <div style="margin-top:20px; display:grid; gap:10px;">
-      <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
-      <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+  let actionsHtml = '';
+  if (o.status === "Em análise técnica" || preco === 0) {
+    actionsHtml = `
+      <div style="margin-top:20px; background:#fef9c3; border:1px solid #fde047; border-radius:10px; padding:16px; text-align:center;">
+        <h3 style="color:#854d0e; font-size:16px; margin-bottom:4px;">🔍 Equipamento em Análise de Bancada</h3>
+        <p style="color:#a16207; font-size:14px;">Seu aparelho foi recebido e está sendo avaliado pelo técnico. O orçamento detalhado será disponibilizado em breve neste mesmo link.</p>
+      </div>
+      ${contactCompanyBtn}
+    `;
+  } else if (isApproved) {
+    actionsHtml = `
+      <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
+        <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Orçamento Aprovado - Conserto Iniciado!</h3>
+        <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipe técnica.</p>
+      </div>
       ${pixBlockHtml}
       ${contactCompanyBtn}
-    </div>
-  `;
+    `;
+  } else {
+    actionsHtml = `
+      <div style="margin-top:20px; display:grid; gap:10px;">
+        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
+        <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
+        ${pixBlockHtml}
+        ${contactCompanyBtn}
+      </div>
+    `;
+  }
 
   document.getElementById("app").innerHTML = `
     <header class="top">
@@ -1727,9 +1764,9 @@ function displayClientOrderPage(o) {
         ` : ''}
         <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${o.name}</p>
         <p style="margin-bottom:8px;"><strong>Defeito Relatado:</strong> ${o.problem || 'Não especificado'}</p>
-        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico:</strong> ${o.diagnosis || 'Em avaliação técnica'}</p>
-        <p style="margin-bottom:8px; font-size:18px;"><strong>Valor Total do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">${formatBRL(o.price)}</span></p>
-        ${o.entryFee > 0 ? `<p style="margin-bottom:8px; font-size:14px; color:#166534;"><strong>Sinal Pago:</strong> ${formatBRL(o.entryFee)} | <strong>Saldo Restante na Entrega:</strong> ${formatBRL(o.price - o.entryFee)}</p>` : ''}
+        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico:</strong> ${o.diagnosis || 'Em avaliação de bancada'}</p>
+        <p style="margin-bottom:8px; font-size:18px;"><strong>Valor Total do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">${preco > 0 ? formatBRL(preco) : 'A definir após análise técnica'}</span></p>
+        ${o.entryFee > 0 ? `<p style="margin-bottom:8px; font-size:14px; color:#166534;"><strong>Sinal Pago:</strong> ${formatBRL(o.entryFee)} | <strong>Saldo Restante na Entrega:</strong> ${preco > 0 ? formatBRL(preco - o.entryFee) : 'A calcular'}</p>` : ''}
         ${o.refusalFee > 0 ? `<p style="font-size:12px; color:var(--red);">* Taxa de análise/deslocamento caso o orçamento não seja aprovado: R$ ${Number(o.refusalFee).toFixed(2)}</p>` : ''}
       </div>
 
@@ -1991,14 +2028,18 @@ async function saveOrder(e) {
   const accessoriesLeft = document.getElementById("osAccessoriesLeft") ? document.getElementById("osAccessoriesLeft").value.trim() : "";
   const problem = document.getElementById("osProblem").value.trim();
   const diagnosis = document.getElementById("osDiagnosis").value.trim();
-  const price = parseFloat(document.getElementById("osPrice").value) || 0;
+  
+  const rawPrice = document.getElementById("osPrice").value;
+  const price = rawPrice ? parseFloat(rawPrice) : 0;
   const entryFee = parseFloat(document.getElementById("osEntryFee").value) || 0;
   const paymentMethod = document.getElementById("osPaymentMethod").value;
   const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 0;
   const photoUrl = document.getElementById("osPhoto").value.trim();
   const warrantyDays = parseInt(document.getElementById("osWarrantyDays").value) || 90;
-  const status = "Aguardando aprovação";
   const partsUsed = [...currentOsParts];
+
+  // Se não foi lançado valor, a OS entra direto como "Em análise técnica"
+  const status = price > 0 ? "Aguardando aprovação" : "Em análise técnica";
 
   let cId = null;
   if (supabaseClient) {
@@ -2054,7 +2095,7 @@ async function saveOrder(e) {
       });
       localStorage.setItem("wa_parts", JSON.stringify(parts));
       currentOsParts = [];
-      alert("Ordem " + createdId + " salva com sucesso!");
+      alert("Ordem " + createdId + " registrada com sucesso! (Status: " + status + ")");
       renderDashboard();
       return;
     } catch (err) {
@@ -2071,7 +2112,7 @@ async function saveOrder(e) {
   });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   currentOsParts = [];
-  alert("Ordem " + shortId + " salva com sucesso!");
+  alert("Ordem " + shortId + " registrada localmente! (Status: " + status + ")");
   renderDashboard();
 }
 
@@ -2083,7 +2124,7 @@ function editOrder(id) {
   modal.className = "modal";
   modal.innerHTML = `
     <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Editar Ordem de Serviço (${o.id})</h3>
+      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Editar / Lançar Orçamento (${o.id})</h3>
       <form onsubmit="updateOrder(event, '${o.id}')">
         <div class="two">
           <div class="field">
@@ -2130,13 +2171,13 @@ function editOrder(id) {
           <textarea id="editOsProblem" rows="2">${o.problem || ''}</textarea>
         </div>
         <div class="field">
-          <label>Diagnóstico Técnico</label>
-          <textarea id="editOsDiagnosis" rows="2">${o.diagnosis || ''}</textarea>
+          <label>Diagnóstico Técnico (O que precisa / Defeito real apurado)</label>
+          <textarea id="editOsDiagnosis" rows="2" placeholder="Descreva os componentes defeituosos e serviços a realizar">${o.diagnosis || ''}</textarea>
         </div>
         <div class="three">
           <div class="field">
-            <label>Valor Orçamento (R$) *</label>
-            <input id="editOsPrice" required type="number" step="0.01" value="${Number(o.price || 0).toFixed(2)}">
+            <label>Valor Orçamento (R$)</label>
+            <input id="editOsPrice" type="number" step="0.01" value="${Number(o.price || 0) > 0 ? Number(o.price).toFixed(2) : ''}" placeholder="0.00">
           </div>
           <div class="field">
             <label>Sinal / Entrada (R$)</label>
@@ -2171,6 +2212,7 @@ function editOrder(id) {
           <div class="field">
             <label>Status da Ordem</label>
             <select id="editOsStatus">
+              <option value="Em análise técnica" ${o.status === 'Em análise técnica' ? 'selected' : ''}>Em análise técnica</option>
               <option value="Aguardando aprovação" ${o.status === 'Aguardando aprovação' ? 'selected' : ''}>Aguardando aprovação</option>
               <option value="Aprovado - Conserto iniciado" ${o.status === 'Aprovado - Conserto iniciado' || o.status === 'Em conserto' ? 'selected' : ''}>Aprovado - Conserto iniciado</option>
               <option value="Pronto para retirada" ${o.status === 'Pronto para retirada' ? 'selected' : ''}>Pronto para retirada</option>
@@ -2204,13 +2246,21 @@ async function updateOrder(e, id) {
   o.accessoriesLeft = document.getElementById("editOsAccessories").value.trim();
   o.problem = document.getElementById("editOsProblem").value.trim();
   o.diagnosis = document.getElementById("editOsDiagnosis").value.trim();
-  o.price = parseFloat(document.getElementById("editOsPrice").value) || 0;
+  
+  const rawPrice = document.getElementById("editOsPrice").value;
+  o.price = rawPrice ? parseFloat(rawPrice) : 0;
   o.entryFee = parseFloat(document.getElementById("editOsEntryFee").value) || 0;
   o.paymentMethod = document.getElementById("editOsPaymentMethod").value;
   o.refusalFee = parseFloat(document.getElementById("editOsRefusalFee").value) || 0;
   o.dias_garantia = parseInt(document.getElementById("editOsWarrantyDays").value) || 90;
   o.data_conclusao = document.getElementById("editOsWarrantyStart").value || null;
-  o.status = document.getElementById("editOsStatus").value;
+  
+  let newStatus = document.getElementById("editOsStatus").value;
+  // Se o usuário lançou um valor e o status ainda era "Em análise técnica", adianta para "Aguardando aprovação"
+  if (newStatus === "Em análise técnica" && o.price > 0) {
+    newStatus = "Aguardando aprovação";
+  }
+  o.status = newStatus;
 
   localStorage.setItem("wa_orders", JSON.stringify(orders));
 
@@ -2239,7 +2289,7 @@ async function updateOrder(e, id) {
   }
 
   document.querySelector(".modal").remove();
-  alert("✅ Ordem de serviço atualizada!");
+  alert("✅ Ordem de serviço atualizada com sucesso!");
   renderDashboard();
 }
 
@@ -2253,9 +2303,13 @@ function printOrderSheet(id) {
   const entrada = Number(o.entryFee || 0);
   const restante = Math.max(0, precoTotal - entrada);
 
+  const isEmAnalise = precoTotal === 0 || o.status === "Em análise técnica";
+
   const pecasTexto = (o.partsUsed && o.partsUsed.length > 0)
     ? o.partsUsed.map(p => `${p.nome} (Qtd: ${p.qtd || 1})`).join(", ")
-    : "Mão de obra e reparo sem peças adicionais";
+    : (isEmAnalise ? "A definir após avaliação laboratorial" : "Mão de obra e reparo sem peças adicionais");
+
+  const tituloDocumento = isEmAnalise ? "COMPROVANTE DE ENTRADA / ANÁLISE" : "ORDEM DE SERVIÇO & GARANTIA";
 
   printArea.innerHTML = `
     <div style="font-family: Arial, sans-serif; color:#111; max-width:800px; margin:0 auto; border:1px solid #ccc; padding:24px; border-radius:8px;">
@@ -2266,7 +2320,7 @@ function printOrderSheet(id) {
           <p style="font-size:12px; color:#555; margin:0;">WhatsApp: ${companyWhatsApp || 'A combinar'} · ${companyAddress}</p>
         </div>
         <div style="text-align:right;">
-          <h2 style="font-size:20px; color:#102b50; margin:0;">ORDEM DE SERVIÇO</h2>
+          <h2 style="font-size:18px; color:#102b50; margin:0;">${tituloDocumento}</h2>
           <strong style="font-size:16px; color:#1672d3;">${o.id}</strong><br>
           <small style="color:#666;">Data: ${dataHoje}</small>
         </div>
@@ -2290,7 +2344,7 @@ function printOrderSheet(id) {
       <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:12px;">
         <tr>
           <td style="padding:6px; border:1px solid #ddd; width:50%;">
-            <strong>Avarias Prévias Constatadas:</strong><br>
+            <strong>Avarias Prévias Constatadas no Recebimento:</strong><br>
             <span style="color:#555;">${o.checklistDamages || 'Nenhuma avaria aparente informada no ato da entrada'}</span>
           </td>
           <td style="padding:6px; border:1px solid #ddd; width:50%;">
@@ -2301,10 +2355,10 @@ function printOrderSheet(id) {
       </table>
 
       <div style="border:1px solid #ddd; padding:10px; margin-bottom:12px; border-radius:4px; font-size:12px;">
-        <strong>Defeito Constatado / Relatado:</strong>
+        <strong>Defeito Constatado / Informado pelo Cliente:</strong>
         <p style="margin:4px 0 8px;">${o.problem || 'Não detalhado'}</p>
-        <strong>Serviço Técnico / Peças Substituídas:</strong>
-        <p style="margin:4px 0 0;">${o.diagnosis || ''} (${pecasTexto})</p>
+        <strong>Diagnóstico Técnico / Peças Substituídas:</strong>
+        <p style="margin:4px 0 0;">${o.diagnosis || (isEmAnalise ? 'Equipamento em fila de bancada para diagnóstico de componentes.' : 'Reparo executado.')} (${pecasTexto})</p>
       </div>
 
       <table style="width:100%; border-collapse:collapse; margin-bottom:16px; font-size:13px;">
@@ -2315,17 +2369,22 @@ function printOrderSheet(id) {
           <th style="padding:8px; border:1px solid #ddd; text-align:left;">Garantia Legal</th>
         </tr>
         <tr>
-          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#102b50;">${formatBRL(precoTotal)}</td>
+          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#102b50;">
+            ${isEmAnalise ? '<span style="color:#d97706;">A DEFINIR APÓS AVALIAÇÃO</span>' : formatBRL(precoTotal)}
+          </td>
           <td style="padding:8px; border:1px solid #ddd; color:#166534;">${formatBRL(entrada)}</td>
-          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#c63b48;">${formatBRL(restante)}</td>
+          <td style="padding:8px; border:1px solid #ddd; font-weight:700; color:#c63b48;">
+            ${isEmAnalise ? 'A calcular' : formatBRL(restante)}
+          </td>
           <td style="padding:8px; border:1px solid #ddd;">${o.dias_garantia || 90} dias</td>
         </tr>
       </table>
 
       <div style="border-top:1px dashed #aaa; padding-top:10px; margin-bottom:28px; font-size:10px; color:#555; line-height:1.4;">
-        <strong>TERMOS DE GARANTIA & CONDIÇÕES:</strong><br>
-        1. A garantia cobre exclusivamente os serviços executados e componentes trocados, perdendo validade em caso de violação do lacre de segurança, queda, umidade ou sobretensão na rede elétrica.<br>
-        2. Conforme o Artigo 1.275 do Código Civil e normas do CDC, equipamentos não retirados em até 90 dias após aviso de conclusão serão considerados abandonados para amortização dos custos operacionais de armazenagem.
+        <strong>TERMOS DE RECEBIMENTO & GARANTIA:</strong><br>
+        1. O cliente autoriza a abertura e teste laboratorial do equipamento para constatação do defeito e elaboração do orçamento.<br>
+        2. A garantia cobre exclusivamente os serviços executados e componentes trocados, perdendo validade em caso de violação do lacre de segurança, queda, umidade ou sobretensão na rede elétrica.<br>
+        3. Conforme o Artigo 1.275 do Código Civil e normas do CDC, equipamentos não retirados em até 90 dias após aviso de conclusão serão considerados abandonados para amortização dos custos operacionais de armazenagem.
       </div>
 
       <div style="display:flex; justify-content:space-between; margin-top:40px; font-size:11px; text-align:center;">
@@ -2596,13 +2655,14 @@ function copyLink(id) {
 function changeOrderStatus(id) {
   const o = orders.find(item => item.id === id);
   if (!o) return;
-  const novo = prompt("Novo status:\n1 - Aguardando aprovação\n2 - Aprovado - Conserto iniciado\n3 - Pronto para retirada\n4 - Concluído\n5 - Não aprovado", o.status);
+  const novo = prompt("Novo status:\n1 - Em análise técnica\n2 - Aguardando aprovação\n3 - Aprovado - Conserto iniciado\n4 - Pronto para retirada\n5 - Concluído\n6 - Não aprovado", o.status);
   if (!novo) return;
-  if (novo === "1") o.status = "Aguardando aprovação";
-  else if (novo === "2") o.status = "Aprovado - Conserto iniciado";
-  else if (novo === "3") o.status = "Pronto para retirada";
-  else if (novo === "4") o.status = "Concluído";
-  else if (novo === "5") o.status = "Não aprovado";
+  if (novo === "1") o.status = "Em análise técnica";
+  else if (novo === "2") o.status = "Aguardando aprovação";
+  else if (novo === "3") o.status = "Aprovado - Conserto iniciado";
+  else if (novo === "4") o.status = "Pronto para retirada";
+  else if (novo === "5") o.status = "Concluído";
+  else if (novo === "6") o.status = "Não aprovado";
   else o.status = novo;
 
   if (o.status === "Concluído" || o.status === "Pronto para retirada") {
