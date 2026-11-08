@@ -2,7 +2,6 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <!-- === CONFIGURAÇÃO DE APLICATIVO IPHONE (PWA) - WA RESOLVE === -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -10,9 +9,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#102b50">
 
-  <!-- === PREVIAS BONITAS DE COMPARTILHAMENTO NO WHATSAPP / REDES SOCIAIS === -->
-  <meta property="og:title" content="WA Resolve | Seu orçamento">
-  <meta property="og:description" content="Veja e aprove seu orçamento online.">
+  <meta property="og:title" content="WA Resolve | Central de Serviços">
+  <meta property="og:description" content="Gestão profissional de ordens de serviço, clientes e orçamentos.">
   <meta property="og:image" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/logo.png">
   <meta property="og:url" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/">
   <meta property="og:type" content="website">
@@ -37,43 +35,47 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
-      background: #eef3f9;
+      background: linear-gradient(180deg, #e8effa 0, #f4f7fb 320px) fixed;
       color: var(--ink);
       font: 15px/1.45 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       padding-bottom: env(safe-area-inset-bottom);
+      letter-spacing: -.005em;
     }
     button, input, select, textarea { font: inherit; }
     button {
       cursor: pointer;
       border: 0;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 10px 14px;
       font-weight: 700;
+      font-size: 13px;
+      box-shadow: 0 1px 2px rgba(16,43,80,.08);
       transition: opacity 0.2s, transform 0.1s;
     }
     button:hover { opacity: 0.92; }
     button:active { transform: scale(0.98); }
-    .primary { background: #1672d3; color: #fff; }
+    .primary { background: linear-gradient(135deg,#1c7be0,#1560b5); color: #fff; box-shadow: 0 4px 12px rgba(22,114,211,.3); }
     .secondary { background: #eaf0f8; color: var(--navy); }
-    .gold { background: #f3c44e; color: var(--navy); }
-    .whatsapp-btn { background: #13a765; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+    .gold { background: #f3c44e; color: var(--navy); border-radius: 99px; }
+    .whatsapp-btn { background: #13a765; color: #fff; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(19,167,101,.25); }
     .danger-btn { background: #fff0f0; border: 1px solid #ffdddd; color: #c63b48; }
     
     .top {
       min-height: 74px;
       padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
-      background: linear-gradient(110deg, #102b50 0%, #173b68 100%);
+      background: linear-gradient(120deg, #0c2142 0%, #1d477a 100%);
       border-bottom: 1px solid rgba(255,255,255,.12);
+      border-radius: 0 0 20px 20px;
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       flex-wrap: wrap;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 28px rgba(16,43,80,.22);
     }
     .brand { display: flex; align-items: center; gap: 14px; }
-    .brand-logo-img { height: 50px; width: auto; max-width: none; object-fit: contain; }
+    .brand-badge { background: var(--gold); color: var(--navy); font-weight: 900; padding: 6px 12px; border-radius: 8px; letter-spacing: .5px; }
     
     .sb-badge {
       font-size: 12px;
@@ -91,34 +93,35 @@
     .nav-tabs {
       display: flex;
       gap: 8px;
-      background: #f7f9fc;
-      padding: 10px 24px 0;
-      border-bottom: 1px solid #dfe7f1;
-      box-shadow: 0 2px 8px rgba(16,43,80,.04);
+      background: transparent;
+      padding: 16px 24px 0;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
     .nav-tab {
-      background: transparent;
-      border: 0;
-      padding: 13px 18px;
-      border-radius: 9px 9px 0 0;
+      background: #fff;
+      border: 1px solid #e3e8ef;
+      padding: 10px 18px;
+      border-radius: 99px;
       font-weight: 700;
       color: #41536c;
+      font-size: 13px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 8px;
       white-space: nowrap;
-      transition: background 0.2s;
+      box-shadow: 0 1px 3px rgba(16,43,80,.05);
+      transition: all 0.2s;
     }
     .nav-tab.active {
-      background: #fff;
-      color: #1672d3;
-      box-shadow: inset 0 -3px #1672d3, 0 1px 5px rgba(16,43,80,.05);
+      background: #102b50;
+      color: #fff;
+      border-color: #102b50;
+      box-shadow: 0 6px 14px rgba(16,43,80,.25);
     }
     
-    .content { padding: 20px 24px 28px; max-width: 1680px; margin: 0 auto; }
+    .content { padding: 22px 24px 28px; max-width: 1680px; margin: 0 auto; }
     .stats {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -127,14 +130,18 @@
     }
     .stat {
       background: #fff;
-      padding: 18px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      padding: 20px;
+      border-radius: 16px;
+      border: 0;
+      box-shadow: 0 6px 18px rgba(16,43,80,.07);
       border-left: 4px solid var(--blue);
+      position: relative;
+      overflow: hidden;
+      transition: transform .2s, box-shadow .2s;
     }
+    .stat:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(16,43,80,.12); }
     .stat span { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat strong { display: block; font-size: 26px; margin-top: 6px; color: var(--navy); }
+    .stat strong { display: block; font-size: 28px; margin-top: 6px; color: var(--navy); letter-spacing: -.02em; }
     
     .layout {
       display: grid;
@@ -144,40 +151,44 @@
     }
     @media(max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
-      .top { padding-left: 16px; padding-right: 16px; }
-      .nav-tabs { padding-left: 12px; padding-right: 12px; }
-      .content { padding: 14px 12px 24px; }
+      .top { padding-left: 16px; padding-right: 16px; border-radius: 0 0 16px 16px; }
+      .nav-tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #fff; border-top: 1px solid #dfe7f1; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 14px rgba(16,43,80,.08); }
+      .nav-tab { flex-direction: column; gap: 2px; font-size: 11px; padding: 6px 10px; border-radius: 8px; border: 0; background: transparent; box-shadow: none; }
+      .nav-tab.active { background: #eaf2fd; color: #1672d3; }
+      .content { padding: 14px 12px 90px; }
     }
     
     .panel {
       background: #fff;
-      border: 1px solid #e0e7f0;
-      border-radius: 13px;
-      padding: 20px;
+      border: 0;
+      border-radius: 18px;
+      padding: 24px;
       margin-bottom: 20px;
-      box-shadow: 0 4px 14px rgba(28,58,95,.06);
+      box-shadow: 0 8px 24px rgba(16,43,80,.07);
       min-width: 0;
     }
-    .panel h2 { font-size: 19px; margin-bottom: 16px; color: var(--navy); display: flex; align-items: center; gap: 10px; }
+    .panel h2 { font-size: 18px; margin-bottom: 16px; color: var(--navy); display: flex; align-items: center; gap: 10px; letter-spacing: -.01em; }
+    .panel h2>span[style*="38px"] { background: linear-gradient(135deg,#1672d3,#1d477a)!important; box-shadow: 0 4px 10px rgba(22,114,211,.35); }
     
     .field { margin-bottom: 12px; display: grid; gap: 5px; position: relative; }
-    .field label { font-size: 12px; font-weight: 700; color: #42536b; }
+    .field label { font-size: 11px; font-weight: 700; color: #5a6b82; text-transform: uppercase; letter-spacing: .4px; }
     .field input, .field select, .field textarea {
       width: 100%;
-      border: 1px solid #d7e0eb;
-      border-radius: 9px;
+      border: 1px solid #dbe4ef;
+      border-radius: 11px;
       padding: 10px 12px;
       min-height: 40px;
-      background: #fff;
+      background: #fbfcfe;
       color: #26384f;
       font-size: 16px;
       box-shadow: 0 1px 2px rgba(16,43,80,.02);
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
     .field input:focus, .field select:focus, .field textarea:focus {
       outline: none;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(29, 71, 122, 0.1);
+      background: #fff;
+      border-color: #1672d3;
+      box-shadow: 0 0 0 4px rgba(22, 114, 211, 0.12);
     }
     .field textarea { min-height: 58px; }
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -186,23 +197,25 @@
     
     .card-item {
       background: #fff;
-      border: 1px solid #e1e7ef;
-      border-radius: 11px;
-      padding: 15px 16px;
+      border: 1px solid #e8edf4;
+      border-radius: 14px;
+      padding: 16px 18px;
       margin-bottom: 12px;
-      box-shadow: 0 2px 5px rgba(16,43,80,.025);
+      box-shadow: 0 2px 8px rgba(16,43,80,.04);
       transition: transform 0.15s, box-shadow 0.15s;
     }
-    .card-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .card-item:hover { box-shadow: 0 8px 20px rgba(16,43,80,.09); transform: translateY(-1px); }
     .tag {
       display: inline-block;
-      padding: 5px 12px;
+      padding: 5px 11px;
       border-radius: 99px;
       font-size: 11px;
       font-weight: 700;
       background: #e2e8f0;
       color: var(--navy);
+      letter-spacing: .2px;
     }
+    .tag::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
     .tag.Em_análise_técnica { background: #fef08a; color: #854d0e; }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
     .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
@@ -212,15 +225,20 @@
     .modal {
       position: fixed; inset: 0; background: rgba(16,43,80,0.5); backdrop-filter: blur(2px);
       display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
+      animation: waFade .2s;
     }
     .modal-box {
-      background: #fff; border-radius: 16px; max-width: 580px; width: 100%; padding: 24px;
+      background: #fff; border-radius: 20px; max-width: 580px; width: 100%; padding: 24px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;
+      animation: waIn .25s;
     }
+    @keyframes waFade { from { opacity: 0; } }
+    @keyframes waIn { from { opacity: 0; transform: translateY(8px); } }
+
     .lock-screen {
       max-width: 400px; margin: 80px auto; background: #fff; padding: 36px;
-      border-radius: 20px; border: 1px solid var(--line); text-align: center;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.06);
+      border-radius: 24px; border: 0; text-align: center;
+      box-shadow: 0 24px 60px rgba(16,43,80,.16); border-top: 5px solid var(--gold);
     }
 
     .visit-card { border-left: 4px solid #1672d3; }
@@ -243,6 +261,7 @@
     .visit-actions .whatsapp-btn { background:#13a765; }
     .visit-actions .secondary { background:#eff6ff; border:1px solid #d6e5f6; color:#175ba4; }
     .visit-actions .danger-btn { background:#fff0f0; border:1px solid #ffdddd; color:#c63b48; }
+    
     .visit-search {
       width: min(100%, 310px); min-height:38px; padding:8px 12px;
       border:1px solid #d7e0eb; border-radius:9px; background:#fff;
@@ -250,9 +269,9 @@
     }
     .visit-empty { padding:34px 12px; color:var(--muted); text-align:center; border:1px dashed #d5dfeb; border-radius:10px; }
     
-    .table-custom { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-    .table-custom th, .table-custom td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; }
-    .table-custom th { background: #102b50; color: #fff; font-weight: 700; }
+    .table-custom { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin-top: 10px; font-size: 13px; }
+    .table-custom th, .table-custom td { padding: 10px 12px; border: 0; border-bottom: 1px solid #edf1f6; text-align: left; }
+    .table-custom th { background: #102b50; color: #fff; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
     .table-custom tr:nth-child(even) { background: #f8fafc; }
 
     @media print {
@@ -532,7 +551,7 @@ function setTab(tab) {
 }
 
 function renderLockScreen() {
-  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
+  const brandDisplay = '<span class="brand-badge">WA RESOLVE</span>';
 
   document.getElementById("app").innerHTML = `
     <header class="top">
@@ -561,10 +580,10 @@ function renderDashboard() {
     : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
 
   const companyBadge = companyWhatsApp 
-    ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
+    ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
     : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="openKeyModal()">⚠️ Configurar WhatsApp/PIX</button>';
 
-  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
+  const brandDisplay = '<span class="brand-badge">WA</span> <span style="font-weight:800; font-size:18px; color:#fff;">Central de Serviços</span>';
 
   const header = `
     <header class="top">
@@ -574,13 +593,13 @@ function renderDashboard() {
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         ${companyBadge}
         ${sbStatus}
-        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">⚙️ Config & PIX</button>
+        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">⚙️ Config. PIX</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
         <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
       </div>
     </header>
     <div class="nav-tabs">
-      <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordens de Serviço</button>
+      <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordem de Serviço</button>
       <button class="nav-tab ${activeTab==='history'?'active':''}" onclick="setTab('history')">🛡️ Histórico & Garantias</button>
       <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
       <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
@@ -926,7 +945,7 @@ function openPixQrModal(id) {
   if (!o) return;
 
   if (!companyPixKey) {
-    alert("Por favor, configure sua Chave PIX primeiro no botão '⚙️ Config & PIX' no topo da tela.");
+    alert("Por favor, configure sua Chave PIX primeiro no botão '⚙️ Config. PIX' no topo da tela.");
     openKeyModal();
     return;
   }
