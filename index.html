@@ -272,7 +272,12 @@ function syncFromSupabase() {
   if (!supabaseClient) return;
   supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData }) => {
     if (cData && cData.length > 0) {
-      clients = cData;
+      clients = cData.map(c => ({
+        id: c.id,
+        nome: c.nome,
+        telefone: c.telefone || "",
+        endereco: c.endereco || ""
+      }));
       localStorage.setItem("wa_clients", JSON.stringify(clients));
       if (isUnlocked && activeTab === 'clients') renderDashboard();
     }
@@ -473,6 +478,16 @@ function renderOrders() {
               <input id="osSeal" placeholder="Ex.: LACRE 0413">
             </div>
           </div>
+          <div class="two">
+            <div class="field">
+              <label>Valor do Orçamento (R$) (Opcional)</label>
+              <input id="osPrice" type="number" step="0.01" placeholder="0.00 (ou defina depois)">
+            </div>
+            <div class="field">
+              <label>Taxa de Não Aprovação (R$)</label>
+              <input id="osRefusalFee" type="number" step="0.01" value="50.00" placeholder="50.00">
+            </div>
+          </div>
           <div class="field">
             <label>Defeito Relatado pelo Cliente *</label>
             <textarea id="osProblem" rows="2" required placeholder="Digite aqui o defeito, observações ou detalhes..."></textarea>
@@ -496,11 +511,18 @@ function renderOrders() {
     </div>`;
 }
 
-// ================= ABA CLIENTES =================
+// ================= ABA CLIENTES (COM OPÇÃO DE EDITAR) =================
 function renderClients() {
   let clientsHtml = clients.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum cliente cadastrado.</p>' : clients.map(c => `
-    <div class="card-item">
-      <strong>${c.nome}</strong><br><small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
+    <div class="card-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <strong>${c.nome}</strong><br>
+        <small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
+      </div>
+      <div>
+        <button class="secondary" onclick="editClient('${c.id}')">✏️ Editar</button>
+        <button class="danger-btn" onclick="deleteClient('${c.id}')">🗑️ Excluir</button>
+      </div>
     </div>`).join('');
   return `
     <div class="layout">
@@ -526,12 +548,49 @@ async function saveClient(e) {
   const telefone = document.getElementById("cTelefone").value.trim();
   const endereco = document.getElementById("cEndereco").value.trim();
   
-  clients.push({ id: Date.now(), nome, telefone, endereco });
+  const novoC = { id: Date.now(), nome, telefone, endereco };
+  clients.push(novoC);
   localStorage.setItem("wa_clients", JSON.stringify(clients));
   if (supabaseClient) {
     await supabaseClient.from("clientes").insert([{ nome, telefone, endereco }]);
   }
   alert("✅ Cliente cadastrado com sucesso!");
+  renderDashboard();
+}
+
+function editClient(id) {
+  const c = clients.find(x => String(x.id) === String(id));
+  if (!c) return;
+  const novoNome = prompt("Editar Nome:", c.nome);
+  if (novoNome === null) return;
+  const novoTel = prompt("Editar Telefone:", c.telefone || "");
+  if (novoTel === null) return;
+  const novoEnd = prompt("Editar Endereço:", c.endereco || "");
+  if (novoEnd === null) return;
+
+  c.nome = novoNome.trim();
+  c.telefone = novoTel.trim();
+  c.endereco = novoEnd.trim();
+
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+  if (supabaseClient && c.id) {
+    supabaseClient.from("clientes").update({ nome: c.nome, telefone: c.telefone, endereco: c.endereco }).eq("id", c.id).then(() => {
+      alert("✅ Cliente atualizado!");
+      renderDashboard();
+    });
+  } else {
+    alert("✅ Cliente atualizado!");
+    renderDashboard();
+  }
+}
+
+async function deleteClient(id) {
+  if (!confirm("Deseja realmente excluir este cliente?")) return;
+  clients = clients.filter(x => String(x.id) !== String(id));
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+  if (supabaseClient) {
+    await supabaseClient.from("clientes").delete().eq("id", id);
+  }
   renderDashboard();
 }
 
@@ -766,7 +825,7 @@ async function saveOrder(e) {
   renderDashboard();
 }
 
-// FORMULÁRIO COMPLETO DE LANÇAMENTO DE ORÇAMENTO E SERVIÇO (BANCADA)
+// FORMULÁRIO COMPLETO DE LANÇAMENTO DE ORÇAMENTO E SERVIÇO (BANCADA) COM GRAVAÇÃO GARANTIDA NO SUPABASE
 function editOrder(id) {
   const o = orders.find(item => String(item.id) === String(id));
   if (!o) return;
