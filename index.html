@@ -417,7 +417,7 @@ function renderOrders() {
             <button class="secondary" style="background:#e0f2fe; color:#0369a1;" onclick="openQuickMessagesModal('${o.id}')">💬 Msg Rápidas</button>
             ${price > 0 ? `<button class="secondary" style="background:#d1fae5; color:#065f46;" onclick="openPixQrModal('${o.id}')">💳 PIX</button>` : ''}
             <button class="secondary" onclick="printOrderSheet('${o.id}')">🖨️ Termo</button>
-            <button class="secondary" onclick="editOrder('${o.id}')">✏️ Editar</button>
+            <button class="secondary" onclick="editOrder('${o.id}')">✏️ Editar Orçamento</button>
             <button class="secondary" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
             <button class="secondary" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
             <button class="danger-btn" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
@@ -872,7 +872,7 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => alert("Link copiado!\n\n" + url));
 }
 
-// CORREÇÃO DA PÁGINA PÚBLICA DO CLIENTE COM A TAXA DE RECUSA E BOTÕES DE APROVAÇÃO
+// PÁGINA PÚBLICA DO CLIENTE COM ORÇAMENTO E TAXA DE RECUSA DE R$ 50,00
 function renderClientView(id) {
   const app = document.getElementById("app");
   app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
@@ -975,7 +975,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const detalhesTxt = decodeURIComponent(details || "");
   const urlOs = getPublicSiteBaseUrl().replace(/\/$/, "") + "/#cliente=" + encodeURIComponent(dbId);
 
-  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (*${orderId}*) referente ao conserto do seu(sua) *${nomeAparelho}* na *WA Resolve*:\n\n💰 *Valor:* ${price > 0 ? formatBRL(price) : 'Em análise'}\n${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ''}\n👉 *Clique no link para ver detalhes e aprovar online:*\n${urlOs}`;
+  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (*${orderId}*) referente ao conserto do seu(sua) *${nomeAparelho}* na *WA Resolve*:\n\n💰 *Valor:* ${Number(price) > 0 ? formatBRL(price) : 'Em análise'}\n${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ''}\n⚠️ *Nota:* Caso o orçamento não seja aprovado, incide taxa de análise no valor de R$ 50,00.\n\n👉 *Clique no link para ver detalhes e aprovar online:*\n${urlOs}`;
   window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(texto)}`, '_blank');
 }
 
@@ -983,7 +983,7 @@ function printOrderSheet(id) {
   const o = orders.find(item => String(item.id) === String(id));
   if (!o) return;
   const pa = document.getElementById("printArea");
-  pa.innerHTML = `<div style="font-family:Arial; padding:20px;"><h2>WA RESOLVE - ORDEM ${o.id}</h2><p><strong>Cliente:</strong> ${o.name}</p><p><strong>Aparelho:</strong> ${o.appliance}</p><p><strong>Defeito:</strong> ${o.problem}</p><p><strong>Valor:</strong> ${formatBRL(o.price)}</p></div>`;
+  pa.innerHTML = `<div style="font-family:Arial; padding:20px;"><h2>WA RESOLVE - ORDEM ${o.id}</h2><p><strong>Cliente:</strong> ${o.name}</p><p><strong>Aparelho:</strong> ${o.appliance}</p><p><strong>Defeito:</strong> ${o.problem}</p><p><strong>Valor:</strong> ${formatBRL(o.price)}</p><p><strong>Taxa de recusa/análise:</strong> R$ 50,00</p></div>`;
   window.print();
 }
 
