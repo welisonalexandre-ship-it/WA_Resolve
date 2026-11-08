@@ -860,6 +860,97 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => alert("Link copiado!\n\n" + url));
 }
 
+// CORREÇÃO DA PÁGINA PÚBLICA DO CLIENTE COM BOTÕES DE APROVAÇÃO
+function renderClientView(id) {
+  const app = document.getElementById("app");
+  app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
+  const cleanId = String(id || "").replace(/\D/g, "");
+  if (!supabaseClient || !cleanId) {
+    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Ordem indisponível</h2></div>';
+    return;
+  }
+
+  supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
+    if (error || !data) {
+      app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Orçamento não localizado</h2></div>';
+      return;
+    }
+    const o = {
+      id: "WR-" + data.id, dbId: data.id,
+      name: data.clientes ? data.clientes.nome : "Cliente",
+      appliance: data.titulo_servico || "Aparelho", brand: data.marca || "",
+      problem: data.defeito || data.descricao || "", diagnosis: data.diagnostico || "",
+      price: Number(data.orcamento) || 0, refusalFee: Number(data.taxa_recusa) || 30.00,
+      entryFee: Number(data.valor_entrada) || 0, photoUrlDefect: data.foto_defeito || data.foto_entrada || "",
+      status: data.status || "Aguardando aprovação", dias_garantia: data.dias_garantia || 90
+    };
+    displayClientOrderPage(o);
+  });
+}
+
+function displayClientOrderPage(o) {
+  const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
+  const contactCompanyBtn = companyPhoneClean ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px; justify-content:center;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id}', '_blank')">💬 Falar com a Assistência no WhatsApp</button>` : '';
+
+  const preco = Number(o.price || 0);
+  const fotoHtml = o.photoUrlDefect ? `<div style="margin:16px 0; text-align:center;"><img src="${o.photoUrlDefect}" style="max-width:100%; max-height:280px; border-radius:8px;"></div>` : '';
+
+  const isApproved = String(o.status).toLowerCase().includes("aprovado");
+  const isConcluido = String(o.status).toLowerCase().includes("concluído") || String(o.status).toLowerCase().includes("pronto");
+
+  let actionsHtml = '';
+  if (isConcluido || isApproved) {
+    actionsHtml = `
+      <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
+        <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ ${isConcluido ? 'Aparelho Pronto!' : 'Orçamento Aprovado!'}</h3>
+        <p style="color:#047857; font-size:14px;">${isConcluido ? 'Seu equipamento está pronto para retirada.' : 'O conserto foi iniciado.'}</p>
+      </div>
+      ${contactCompanyBtn}`;
+  } else {
+    // OS BOTÕES DE APROVAÇÃO APARECEM AQUI PARA O CLIENTE
+    actionsHtml = `
+      <div style="margin-top:20px; display:grid; gap:10px;">
+        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:15px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId})">✅ Aprovar Orçamento</button>
+        <button class="danger-btn" style="width:100%; padding:12px; font-size:14px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId})">❌ Não Aprovar (Recusar)</button>
+        ${contactCompanyBtn}
+      </div>`;
+  }
+
+  document.getElementById("app").innerHTML = `
+    <header class="top"><div class="brand"><div class="brand-title">WA ❄️ <span style="font-size:15px; font-weight:500;">Acompanhamento Online</span></div></div></header>
+    <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:18px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+      <div style="text-align:center; margin-bottom:16px;">
+        <span class="tag ${String(o.status).replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">Status: ${o.status}</span>
+        <h2 style="color:var(--navy); margin-top:8px;">${o.appliance}</h2>
+        <p style="color:var(--muted);">Ordem ${o.id} · Cliente: ${o.name}</p>
+      </div>
+      ${fotoHtml}
+      <div style="border-top:1px solid var(--line); padding-top:14px; font-size:14px; line-height:1.6;">
+        <p><strong>Defeito relatado:</strong> ${o.problem || 'Não especificado'}</p>
+        <p><strong>Diagnóstico técnico:</strong> ${o.diagnosis || 'Em avaliação de bancada'}</p>
+        <p style="font-size:18px; margin-top:8px;"><strong>Valor do Orçamento:</strong> <span style="color:var(--green); font-weight:900;">${preco > 0 ? formatBRL(preco) : 'A definir após análise'}</span></p>
+      </div>
+      ${actionsHtml}
+    </div>`;
+}
+
+function clientActionOrder(id, newStatus, dbId) {
+  const o = orders.find(item => String(item.id) === String(id));
+  if (o) {
+    o.status = newStatus;
+    localStorage.setItem("wa_orders", JSON.stringify(orders));
+  }
+  if (supabaseClient && dbId) {
+    supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", dbId).then(() => {
+      alert("✅ Resposta registrada com sucesso! Obrigado.");
+      renderClientView(dbId);
+    });
+  } else {
+    alert("✅ Resposta registrada com sucesso!");
+    location.reload();
+  }
+}
+
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
   const cleanPhone = (clientPhone || "").replace(/\D/g, "");
   if (!cleanPhone) return alert("Esta ordem não possui WhatsApp cadastrado.");
