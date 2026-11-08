@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#102b50">
 
   <meta property="og:title" content="WA Resolve | Central de Serviços">
-  <meta property="og:description" content="Rapidex · Honestidade · Garantia">
+  <meta property="og:description" content="Gestão profissional de ordens de serviço, clientes e orçamentos.">
   <meta property="og:image" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/logo.png">
   <meta property="og:url" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/">
   <meta property="og:type" content="website">
@@ -59,7 +59,6 @@
     .whatsapp-btn { background: #10b981; color: #fff; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 3px 8px rgba(16,185,129,.25); }
     .danger-btn { background: #fff0f0; border: 1px solid #ffdddd; color: #c63b48; }
     
-    /* TOPO EXATAMENTE IGUAL À IMAGEM */
     .top {
       min-height: 70px;
       padding: 12px 28px;
@@ -78,93 +77,46 @@
     .brand-sub { font-size: 11px; color: #93c5fd; letter-spacing: 0.3px; font-weight: 500; }
     
     .sb-badge {
-      font-size: 11px;
-      padding: 6px 12px;
-      border-radius: 99px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
+      font-size: 11px; padding: 6px 12px; border-radius: 99px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
     }
     .sb-on { background: #d1fae5; color: #065f46; }
     .sb-off { background: #fee2e2; color: #991b1b; }
     
-    /* ABAS ESTILO PÍLULA */
     .nav-tabs {
-      display: flex;
-      gap: 10px;
-      background: transparent;
-      padding: 20px 28px 0;
-      overflow-x: auto;
+      display: flex; gap: 10px; background: transparent; padding: 20px 28px 0; overflow-x: auto;
     }
     .nav-tab {
-      background: #fff;
-      border: 1px solid #e3e8ef;
-      padding: 9px 18px;
-      border-radius: 99px;
-      font-weight: 700;
-      color: #41536c;
-      font-size: 13px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      white-space: nowrap;
-      box-shadow: 0 1px 3px rgba(16,43,80,.04);
-      transition: all 0.2s;
+      background: #fff; border: 1px solid #e3e8ef; padding: 9px 18px; border-radius: 99px; font-weight: 700; color: #41536c; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; box-shadow: 0 1px 3px rgba(16,43,80,.04); transition: all 0.2s;
     }
     .nav-tab.active {
-      background: #1672d3;
-      color: #fff;
-      border-color: #1672d3;
-      box-shadow: 0 4px 12px rgba(22,114,211,.3);
+      background: #1672d3; color: #fff; border-color: #1672d3; box-shadow: 0 4px 12px rgba(22,114,211,.3);
     }
     
     .content { padding: 22px 28px 36px; max-width: 1700px; margin: 0 auto; }
-    
-    /* STATS / CARDS SUPERIORES ESTILO PASTEL */
     .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 24px;
     }
     .stat {
-      background: #fff;
-      padding: 18px 20px;
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(16,43,80,.05);
-      border-left: 5px solid #1672d3;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      position: relative;
+      background: #fff; padding: 18px 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(16,43,80,.05); border-left: 5px solid #1672d3; display: flex; flex-direction: column; justify-content: space-between;
     }
     .stat span { font-size: 11px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
     .stat strong { font-size: 26px; margin-top: 8px; color: var(--navy); font-weight: 900; }
     .stat small { font-size: 11px; color: var(--muted); margin-top: 2px; }
     
-    /* LAYOUT DUAS COLUNAS EXATAMENTE COMO NA FOTO */
     .layout {
-      display: grid;
-      grid-template-columns: minmax(420px, 1.05fr) minmax(480px, 1.15fr);
-      gap: 20px;
-      align-items: stretch;
+      display: grid; grid-template-columns: minmax(420px, 1.05fr) minmax(480px, 1.15fr); gap: 20px; align-items: stretch;
     }
     @media(max-width: 1000px) {
       .layout { grid-template-columns: 1fr; }
-      .top { padding: 12px 16px; }
-      .nav-tabs { padding: 12px 16px 0; }
-      .content { padding: 14px 12px; }
+      .top { padding: 12px 16px; border-radius: 0 0 16px 16px; }
+      .nav-tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #fff; border-top: 1px solid #dfe7f1; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 14px rgba(16,43,80,.08); }
+      .nav-tab { flex-direction: column; gap: 2px; font-size: 11px; padding: 6px 10px; border-radius: 8px; border: 0; background: transparent; box-shadow: none; }
+      .nav-tab.active { background: #eaf2fd; color: #1672d3; }
+      .content { padding: 14px 12px 90px; }
     }
     
     .panel {
-      background: #fff;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 6px 20px rgba(16,43,80,.06);
-      min-width: 0;
+      background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 6px 20px rgba(16,43,80,.06); min-width: 0; margin-bottom: 20px;
     }
     .panel h2 { font-size: 16px; margin-bottom: 18px; color: #fff; background: #1672d3; padding: 12px 16px; border-radius: 10px; display: flex; align-items: center; gap: 8px; font-weight: 800; }
     .panel:nth-child(2) h2 { background: #1e3a8a; }
@@ -172,43 +124,21 @@
     .field { margin-bottom: 14px; display: grid; gap: 5px; }
     .field label { font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: .4px; }
     .field input, .field select, .field textarea {
-      width: 100%;
-      border: 1px solid #d2dce8;
-      border-radius: 10px;
-      padding: 10px 14px;
-      min-height: 40px;
-      background: #f8fafc;
-      color: #1e293b;
-      font-size: 14px;
-      transition: all 0.2s;
+      width: 100%; border: 1px solid #d2dce8; border-radius: 10px; padding: 10px 14px; min-height: 40px; background: #f8fafc; color: #1e293b; font-size: 14px; transition: all 0.2s;
     }
     .field input:focus, .field select:focus, .field textarea:focus {
-      outline: none;
-      background: #fff;
-      border-color: #1672d3;
-      box-shadow: 0 0 0 3px rgba(22, 114, 211, 0.12);
+      outline: none; background: #fff; border-color: #1672d3; box-shadow: 0 0 0 3px rgba(22, 114, 211, 0.12);
     }
+    .field textarea { min-height: 58px; }
     .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
     @media(max-width: 650px) { .two, .three { grid-template-columns: 1fr; } }
     
-    /* CARD DE ORDENS CADASTRADAS DA DIREITA */
     .card-item {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-      box-shadow: 0 2px 6px rgba(16,43,80,.03);
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(16,43,80,.03);
     }
     .tag {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 700;
-      background: #e2e8f0;
-      color: var(--navy);
+      display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #e2e8f0; color: var(--navy);
     }
     .tag.Em_análise_técnica { background: #fef08a; color: #854d0e; }
     .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
@@ -217,17 +147,13 @@
     .tag.Não_aprovado { background: #fee2e2; color: var(--red); }
     
     .modal {
-      position: fixed; inset: 0; background: rgba(16,43,80,0.6); backdrop-filter: blur(3px);
-      display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
+      position: fixed; inset: 0; background: rgba(16,43,80,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
     }
     .modal-box {
-      background: #fff; border-radius: 18px; max-width: 580px; width: 100%; padding: 24px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;
+      background: #fff; border-radius: 18px; max-width: 580px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto;
     }
     .lock-screen {
-      max-width: 400px; margin: 80px auto; background: #fff; padding: 36px;
-      border-radius: 20px; text-align: center; box-shadow: 0 20px 50px rgba(16,43,80,.15);
-      border-top: 6px solid var(--gold);
+      max-width: 400px; margin: 80px auto; background: #fff; padding: 36px; border-radius: 20px; text-align: center; box-shadow: 0 20px 50px rgba(16,43,80,.15); border-top: 6px solid var(--gold);
     }
     
     .table-custom { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
@@ -249,9 +175,7 @@ try {
   if (window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, FIXED_SUPABASE_KEY);
   }
-} catch(e) {
-  console.warn("Supabase init error:", e);
-}
+} catch(e) { console.warn("Supabase init error:", e); }
 
 let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
 let companyPixKey = localStorage.getItem("wa_company_pix") || "";
@@ -358,9 +282,7 @@ window.addEventListener("DOMContentLoaded", () => {
     else if (!isUnlocked) renderLockScreen();
     else renderDashboard();
     if (supabaseClient) syncFromSupabase();
-  } catch(err) {
-    console.error("Erro no DOMContentLoaded:", err);
-  }
+  } catch(err) { console.error("Erro no DOMContentLoaded:", err); }
 });
 
 function syncFromSupabase() {
@@ -391,6 +313,19 @@ function syncFromSupabase() {
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
       if (isUnlocked && activeTab === 'orders') renderDashboard();
+    }
+  });
+
+  supabaseClient.from("visitas").select("*").order("id", { ascending: false }).then(({ data: vData }) => {
+    if (vData && vData.length > 0) {
+      visits = vData.map(v => ({
+        id: "VIS-" + v.id, dbId: v.id,
+        cliente_nome: v.cliente_nome, telefone: v.telefone, endereco: v.endereco,
+        data_visita: v.data_visita, horario_visita: v.horario_visita, aparelho_motivo: v.aparelho_motivo,
+        observacoes: v.observacoes, motivo_recusa: v.motivo_recusa || "", status: v.status || "Agendada"
+      }));
+      localStorage.setItem("wa_visits", JSON.stringify(visits));
+      if (isUnlocked && activeTab === 'visits') renderDashboard();
     }
   });
 }
@@ -478,7 +413,7 @@ function renderOrders() {
   } else {
     orders.slice().reverse().forEach(o => {
       const price = Number(o.price || 0);
-      const valorExibicao = price > 0 ? formatBRL(price) : '<span style="color:#d97706; font-size:13px;">A definir</span>';
+      const valorExibicao = price > 0 ? formatBRL(price) : '<span style="color:#d97706; font-size:13px;">A definir (Em análise)</span>';
       ordersListHtml += `
         <div class="card-item visit-card">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -577,6 +512,52 @@ function renderOrders() {
     </div>`;
 }
 
+// ================= OUTRAS ABAS DO SISTEMA =================
+function renderClients() {
+  let clientsHtml = clients.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum cliente cadastrado.</p>' : clients.map(c => `
+    <div class="card-item">
+      <strong>${c.nome}</strong><br><small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <h2>👥 Meus Clientes (${clients.length})</h2>
+      <div>${clientsHtml}</div>
+    </div>`;
+}
+
+function renderVisits() {
+  let visitsHtml = visits.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhuma visita agendada.</p>' : visits.map(v => `
+    <div class="card-item">
+      <strong>${v.cliente_nome}</strong> (${v.status})<br><small>📅 ${formatarDataBR(v.data_visita)} às ${v.horario_visita} · 📍 ${v.endereco}</small>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <h2>📅 Agendamento de Visitas (${visits.length})</h2>
+      <div>${visitsHtml}</div>
+    </div>`;
+}
+
+function renderParts() {
+  let partsHtml = parts.map(p => `
+    <div class="card-item">
+      <strong>${p.nome}</strong><br><small>Estoque: ${p.estoque} un. · Preço: R$ ${Number(p.preco).toFixed(2)}</small>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <h2>📦 Cadastro de Peças</h2>
+      <div>${partsHtml}</div>
+    </div>`;
+}
+
+function renderBalance() {
+  const totalFat = orders.reduce((s, o) => s + (Number(o.price) || 0), 0);
+  return `
+    <div class="panel">
+      <h2>📊 Balanço Financeiro</h2>
+      <p style="font-size:18px; margin-top:10px;">Faturamento Bruto Total: <strong style="color:var(--green);">${formatBRL(totalFat)}</strong></p>
+    </div>`;
+}
+
 async function handleEntryImageUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -637,7 +618,7 @@ function openPixQrModal(id) {
 
 function renderHistory() {
   const completedOrders = orders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue");
-  let rowsHtml = completedOrders.length === 0 ? '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--muted);">Nenhum serviço concluído.</td></tr>' : completedOrders.map(o => `
+  let rowsHtml = completedOrders.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--muted);">Nenhum serviço concluído.</td></tr>' : completedOrders.map(o => `
     <tr>
       <td><strong>${o.id}</strong></td>
       <td><strong>${o.name}</strong><br><small>${o.appliance}</small></td>
@@ -653,51 +634,6 @@ function renderHistory() {
         <thead><tr><th>OS</th><th>Cliente / Aparelho</th><th>Conclusão</th><th>Garantia</th><th style="text-align:right;">Valor</th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
-    </div>`;
-}
-
-function renderClients() {
-  let clientsHtml = clients.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum cliente cadastrado.</p>' : clients.map(c => `
-    <div class="card-item">
-      <strong>${c.nome}</strong><br><small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
-    </div>`).join('');
-  return `
-    <div class="panel">
-      <h2>👥 Meus Clientes (${clients.length})</h2>
-      <div>${clientsHtml}</div>
-    </div>`;
-}
-
-function renderVisits() {
-  let visitsHtml = visits.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhuma visita agendada.</p>' : visits.map(v => `
-    <div class="card-item">
-      <strong>${v.cliente_nome}</strong> (${v.status})<br><small>📅 ${formatarDataBR(v.data_visita)} às ${v.horario_visita} · 📍 ${v.endereco}</small>
-    </div>`).join('');
-  return `
-    <div class="panel">
-      <h2>📅 Agendamento de Visitas (${visits.length})</h2>
-      <div>${visitsHtml}</div>
-    </div>`;
-}
-
-function renderParts() {
-  let partsHtml = parts.map(p => `
-    <div class="card-item">
-      <strong>${p.nome}</strong><br><small>Estoque: ${p.estoque} un. · Preço: R$ ${Number(p.preco).toFixed(2)}</small>
-    </div>`).join('');
-  return `
-    <div class="panel">
-      <h2>📦 Cadastro de Peças</h2>
-      <div>${partsHtml}</div>
-    </div>`;
-}
-
-function renderBalance() {
-  const totalFat = orders.reduce((s, o) => s + (Number(o.price) || 0), 0);
-  return `
-    <div class="panel">
-      <h2>📊 Balanço Financeiro</h2>
-      <p style="font-size:18px; margin-top:10px;">Faturamento Bruto Total: <strong style="color:var(--green);">${formatBRL(totalFat)}</strong></p>
     </div>`;
 }
 
@@ -861,6 +797,11 @@ function printOrderSheet(id) {
   const pa = document.getElementById("printArea");
   pa.innerHTML = `<div style="font-family:Arial; padding:20px;"><h2>WA RESOLVE - ORDEM ${o.id}</h2><p><strong>Cliente:</strong> ${o.name}</p><p><strong>Aparelho:</strong> ${o.appliance}</p><p><strong>Defeito:</strong> ${o.problem}</p><p><strong>Valor:</strong> ${formatBRL(o.price)}</p></div>`;
   window.print();
+}
+
+function autoFillOrderClient(val) {
+  const c = clients.find(x => x.nome && x.nome.toLowerCase() === val.toLowerCase());
+  if (c && c.telefone) document.getElementById("osPhone").value = c.telefone;
 }
 </script>
 </body>
