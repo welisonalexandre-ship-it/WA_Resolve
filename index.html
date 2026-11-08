@@ -312,7 +312,7 @@ function syncFromSupabase() {
         created: d.created_at, data_conclusao: d.data_conclusao || '', dias_garantia: d.dias_garantia !== null ? Number(d.dias_garantia) : 90
       }));
       localStorage.setItem("wa_orders", JSON.stringify(orders));
-      if (isUnlocked && activeTab === 'orders') renderDashboard();
+      if (isUnlocked && (activeTab === 'orders' || activeTab === 'history' || activeTab === 'balance')) renderDashboard();
     }
   });
 
@@ -512,49 +512,150 @@ function renderOrders() {
     </div>`;
 }
 
-// ================= OUTRAS ABAS DO SISTEMA =================
+// ================= ABA CLIENTES =================
 function renderClients() {
   let clientsHtml = clients.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum cliente cadastrado.</p>' : clients.map(c => `
     <div class="card-item">
       <strong>${c.nome}</strong><br><small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
     </div>`).join('');
   return `
-    <div class="panel">
-      <h2>👥 Meus Clientes (${clients.length})</h2>
-      <div>${clientsHtml}</div>
+    <div class="layout">
+      <div class="panel">
+        <h2>👥 Cadastrar Novo Cliente</h2>
+        <form onsubmit="saveClient(event)">
+          <div class="field"><label>Nome Completo *</label><input id="cNome" required placeholder="Ex.: Francisca Silva"></div>
+          <div class="field"><label>Telefone / WhatsApp *</label><input id="cTelefone" required placeholder="Ex.: 84988887777" inputmode="tel"></div>
+          <div class="field"><label>Endereço Completo</label><textarea id="cEndereco" rows="2" placeholder="Rua, Número, Bairro"></textarea></div>
+          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Salvar Cliente</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>👥 Meus Clientes (${clients.length})</h2>
+        <div>${clientsHtml}</div>
+      </div>
     </div>`;
 }
 
+async function saveClient(e) {
+  e.preventDefault();
+  const nome = document.getElementById("cNome").value.trim();
+  const telefone = document.getElementById("cTelefone").value.trim();
+  const endereco = document.getElementById("cEndereco").value.trim();
+  
+  clients.push({ id: Date.now(), nome, telefone, endereco });
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+  if (supabaseClient) {
+    await supabaseClient.from("clientes").insert([{ nome, telefone, endereco }]);
+  }
+  alert("✅ Cliente cadastrado com sucesso!");
+  renderDashboard();
+}
+
+// ================= ABA VISITAS =================
 function renderVisits() {
   let visitsHtml = visits.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhuma visita agendada.</p>' : visits.map(v => `
     <div class="card-item">
       <strong>${v.cliente_nome}</strong> (${v.status})<br><small>📅 ${formatarDataBR(v.data_visita)} às ${v.horario_visita} · 📍 ${v.endereco}</small>
     </div>`).join('');
+  
+  let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
+
   return `
-    <div class="panel">
-      <h2>📅 Agendamento de Visitas (${visits.length})</h2>
-      <div>${visitsHtml}</div>
+    <div class="layout">
+      <div class="panel">
+        <h2>📅 Agendar Visita Técnica</h2>
+        <form onsubmit="saveVisit(event)">
+          <div class="field"><label>Nome do Cliente *</label><input id="vNome" required placeholder="Nome do cliente" list="vList" oninput="handleVisitClientSelect(this.value)"><datalist id="vList">${clientOptions}</datalist></div>
+          <div class="two">
+            <div class="field"><label>WhatsApp</label><input id="vTelefone" placeholder="84988887777"></div>
+            <div class="field"><label>Data *</label><input type="date" id="vData" required value="${new Date().toISOString().split('T')[0]}"></div>
+          </div>
+          <div class="two">
+            <div class="field"><label>Horário</label><select id="vHorario"><option>08:00 às 10:00 (Manhã)</option><option>10:00 às 12:00 (Manhã)</option><option>13:30 às 15:30 (Tarde)</option><option>15:30 às 17:30 (Tarde)</option></select></div>
+            <div class="field"><label>Aparelho a Coletar *</label><input id="vAparelho" required placeholder="Ex: Geladeira"></div>
+          </div>
+          <div class="field"><label>Endereço Completo *</label><input id="vEndereco" required placeholder="Rua, Número, Bairro"></div>
+          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Confirmar Agendamento</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>📅 Visitas Agendadas (${visits.length})</h2>
+        <div>${visitsHtml}</div>
+      </div>
     </div>`;
 }
 
+function handleVisitClientSelect(val) {
+  const c = clients.find(x => x.nome && x.nome.toLowerCase() === val.toLowerCase());
+  if (c && c.telefone) document.getElementById("vTelefone").value = c.telefone;
+}
+
+async function saveVisit(e) {
+  e.preventDefault();
+  const cliente_nome = document.getElementById("vNome").value.trim();
+  const telefone = document.getElementById("vTelefone").value.trim();
+  const data_visita = document.getElementById("vData").value;
+  const horario_visita = document.getElementById("vHorario").value;
+  const aparelho_motivo = document.getElementById("vAparelho").value.trim();
+  const endereco = document.getElementById("vEndereco").value.trim();
+
+  visits.push({ id: "VIS-" + Date.now(), cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, status: "Agendada" });
+  localStorage.setItem("wa_visits", JSON.stringify(visits));
+  if (supabaseClient) {
+    await supabaseClient.from("visitas").insert([{ cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, status: "Agendada" }]);
+  }
+  alert("✅ Visita agendada com sucesso!");
+  renderDashboard();
+}
+
+// ================= ABA PEÇAS =================
 function renderParts() {
   let partsHtml = parts.map(p => `
-    <div class="card-item">
-      <strong>${p.nome}</strong><br><small>Estoque: ${p.estoque} un. · Preço: R$ ${Number(p.preco).toFixed(2)}</small>
+    <div class="card-item" style="display:flex; justify-content:space-between; align-items:center;">
+      <div><strong>${p.nome}</strong><br><small>Estoque: ${p.estoque} un. · Preço: R$ ${Number(p.preco).toFixed(2)}</small></div>
     </div>`).join('');
   return `
-    <div class="panel">
-      <h2>📦 Cadastro de Peças</h2>
-      <div>${partsHtml}</div>
+    <div class="layout">
+      <div class="panel">
+        <h2>📦 Cadastrar Nova Peça</h2>
+        <form onsubmit="savePart(event)">
+          <div class="field"><label>Nome da Peça *</label><input id="pNome" required placeholder="Ex: Capacitor 2,5uF"></div>
+          <div class="two">
+            <div class="field"><label>Preço Unitário (R$) *</label><input id="pPreco" required type="number" step="0.01" placeholder="0.00"></div>
+            <div class="field"><label>Qtd em Estoque *</label><input id="pEstoque" required type="number" value="1" min="0"></div>
+          </div>
+          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Salvar Peça</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>📦 Peças Cadastradas (${parts.length})</h2>
+        <div>${partsHtml}</div>
+      </div>
     </div>`;
 }
 
+function savePart(e) {
+  e.preventDefault();
+  const nome = document.getElementById("pNome").value.trim();
+  const preco = parseFloat(document.getElementById("pPreco").value) || 0;
+  const estoque = parseInt(document.getElementById("pEstoque").value) || 0;
+  parts.push({ id: Date.now(), nome, preco, estoque });
+  localStorage.setItem("wa_parts", JSON.stringify(parts));
+  alert("✅ Peça cadastrada!");
+  renderDashboard();
+}
+
+// ================= ABA BALANÇO =================
 function renderBalance() {
   const totalFat = orders.reduce((s, o) => s + (Number(o.price) || 0), 0);
+  const concluidas = orders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue").length;
   return `
     <div class="panel">
       <h2>📊 Balanço Financeiro</h2>
-      <p style="font-size:18px; margin-top:10px;">Faturamento Bruto Total: <strong style="color:var(--green);">${formatBRL(totalFat)}</strong></p>
+      <div class="stats" style="margin-top:15px;">
+        <div class="stat" style="border-left-color: #10b981;"><span>Faturamento Bruto Total</span><strong style="color:var(--green);">${formatBRL(totalFat)}</strong></div>
+        <div class="stat" style="border-left-color: #3b82f6;"><span>Serviços Concluídos</span><strong>${concluidas}</strong></div>
+      </div>
     </div>`;
 }
 
