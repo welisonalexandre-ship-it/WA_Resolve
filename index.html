@@ -511,7 +511,7 @@ function renderOrders() {
     </div>`;
 }
 
-// ================= ABA CLIENTES (COM OPÇÃO DE EDITAR) =================
+// ================= ABA CLIENTES =================
 function renderClients() {
   let clientsHtml = clients.length === 0 ? '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhum cliente cadastrado.</p>' : clients.map(c => `
     <div class="card-item" style="display:flex; justify-content:space-between; align-items:center;">
@@ -519,7 +519,7 @@ function renderClients() {
         <strong>${c.nome}</strong><br>
         <small>📱 ${c.telefone || 'Sem telefone'} · 📍 ${c.endereco || 'Sem endereço'}</small>
       </div>
-      <div>
+      <div style="display:flex; gap:6px;">
         <button class="secondary" onclick="editClient('${c.id}')">✏️ Editar</button>
         <button class="danger-btn" onclick="deleteClient('${c.id}')">🗑️ Excluir</button>
       </div>
@@ -548,40 +548,64 @@ async function saveClient(e) {
   const telefone = document.getElementById("cTelefone").value.trim();
   const endereco = document.getElementById("cEndereco").value.trim();
   
-  const novoC = { id: Date.now(), nome, telefone, endereco };
-  clients.push(novoC);
-  localStorage.setItem("wa_clients", JSON.stringify(clients));
   if (supabaseClient) {
-    await supabaseClient.from("clientes").insert([{ nome, telefone, endereco }]);
+    try {
+      const { data, error } = await supabaseClient.from("clientes").insert([{ nome, telefone, endereco }]).select().single();
+      if (error) throw error;
+      if (data) {
+        clients.push(data);
+        localStorage.setItem("wa_clients", JSON.stringify(clients));
+        alert("✅ Cliente cadastrado com sucesso!");
+        renderDashboard();
+        return;
+      }
+    } catch(err) { console.warn("Erro ao salvar cliente na nuvem:", err); }
   }
-  alert("✅ Cliente cadastrado com sucesso!");
+
+  clients.push({ id: Date.now(), nome, telefone, endereco });
+  localStorage.setItem("wa_clients", JSON.stringify(clients));
+  alert("✅ Cliente cadastrado localmente!");
   renderDashboard();
 }
 
 function editClient(id) {
   const c = clients.find(x => String(x.id) === String(id));
   if (!c) return;
-  const novoNome = prompt("Editar Nome:", c.nome);
-  if (novoNome === null) return;
-  const novoTel = prompt("Editar Telefone:", c.telefone || "");
-  if (novoTel === null) return;
-  const novoEnd = prompt("Editar Endereço:", c.endereco || "");
-  if (novoEnd === null) return;
 
-  c.nome = novoNome.trim();
-  c.telefone = novoTel.trim();
-  c.endereco = novoEnd.trim();
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-box">
+      <h3 style="color:var(--navy); margin-bottom:14px;">✏️ Editar Cliente</h3>
+      <div class="field"><label>Nome Completo *</label><input id="editClienteNome" value="${c.nome || ''}"></div>
+      <div class="field"><label>Telefone / WhatsApp *</label><input id="editClienteTel" value="${c.telefone || ''}" inputmode="tel"></div>
+      <div class="field"><label>Endereço Completo</label><textarea id="editClienteEnd" rows="2">${c.endereco || ''}</textarea></div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
+        <button class="primary" onclick="saveClientEdit('${c.id}', this)">Salvar Alterações</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveClientEdit(id, btn) {
+  const c = clients.find(x => String(x.id) === String(id));
+  if (!c) return;
+
+  c.nome = document.getElementById("editClienteNome").value.trim();
+  c.telefone = document.getElementById("editClienteTel").value.trim();
+  c.endereco = document.getElementById("editClienteEnd").value.trim();
 
   localStorage.setItem("wa_clients", JSON.stringify(clients));
   if (supabaseClient && c.id) {
-    supabaseClient.from("clientes").update({ nome: c.nome, telefone: c.telefone, endereco: c.endereco }).eq("id", c.id).then(() => {
-      alert("✅ Cliente atualizado!");
-      renderDashboard();
-    });
-  } else {
-    alert("✅ Cliente atualizado!");
-    renderDashboard();
+    try {
+      await supabaseClient.from("clientes").update({ nome: c.nome, telefone: c.telefone, endereco: c.endereco }).eq("id", c.id);
+    } catch(err) { console.warn("Erro ao atualizar cliente no Supabase:", err); }
   }
+
+  btn.closest('.modal').remove();
+  alert("✅ Cliente atualizado com sucesso!");
+  renderDashboard();
 }
 
 async function deleteClient(id) {
@@ -631,6 +655,7 @@ function renderVisits() {
 function handleVisitClientSelect(val) {
   const c = clients.find(x => x.nome && x.nome.toLowerCase() === val.toLowerCase());
   if (c && c.telefone) document.getElementById("vTelefone").value = c.telefone;
+  if (c && c.endereco) document.getElementById("vEndereco").value = c.endereco;
 }
 
 async function saveVisit(e) {
@@ -825,7 +850,6 @@ async function saveOrder(e) {
   renderDashboard();
 }
 
-// FORMULÁRIO COMPLETO DE LANÇAMENTO DE ORÇAMENTO E SERVIÇO (BANCADA) COM GRAVAÇÃO GARANTIDA NO SUPABASE
 function editOrder(id) {
   const o = orders.find(item => String(item.id) === String(id));
   if (!o) return;
@@ -983,7 +1007,6 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => alert("Link copiado!\n\n" + url));
 }
 
-// PÁGINA PÚBLICA DO CLIENTE COM O DIAGNÓSTICO E TAXA DE RECUSA
 function renderClientView(id) {
   const app = document.getElementById("app");
   app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
