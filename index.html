@@ -1,2020 +1,666 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8">
-  <!-- === CONFIGURAÇÃO DE APLICATIVO IPHONE (PWA) - WA RESOLVE === -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="WA Resolve">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#102b50">
+/* ===== WA RESOLVE - MELHORIAS =====
+   Cole dentro de <script> ... </script> logo ANTES de </body>, depois do script principal. */
 
-  <!-- === PREVIAS BONITAS DE COMPARTILHAMENTO NO WHATSAPP / REDES SOCIAIS === -->
-  <meta property="og:title" content="WA Resolve | Seu orçamento">
-  <meta property="og:description" content="Veja e aprove seu orçamento online.">
-  <meta property="og:image" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/logo.png">
-  <meta property="og:url" content="https://welisonalexandre-ship-it.github.io/WA_Resolve/">
-  <meta property="og:type" content="website">
+/* ---------- 1. CSS novo (fonte Inter, toast, linha do tempo, barra inferior no celular) ---------- */
+(function () {
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap';
+  document.head.appendChild(l);
+  const s = document.createElement('style');
+  s.textContent = `
+  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .brand-badge{background:var(--gold);color:var(--navy);font-weight:900;padding:6px 12px;border-radius:8px;letter-spacing:.5px}
+  .wa-toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));z-index:9999;display:grid;gap:8px;width:min(92vw,420px)}
+  .wa-toast{background:#102b50;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px;animation:waIn .25s}
+  @keyframes waIn{from{opacity:0;transform:translateY(8px)}}
+  .wa-steps{display:flex;margin:18px 0}
+  .wa-step{flex:1;text-align:center;font-size:11px;color:#94a3b8;font-weight:600}
+  .wa-step i{display:block;width:24px;height:24px;border-radius:50%;background:#e2e8f0;margin:0 auto 6px;line-height:24px;font-style:normal;font-weight:800;color:#fff;font-size:12px}
+  .wa-step.done{color:var(--navy)} .wa-step.done i{background:var(--green)}
+  .wa-step.now{color:var(--navy)} .wa-step.now i{background:#1672d3;box-shadow:0 0 0 4px rgba(22,114,211,.2)}
+  .wa-step.stop i{background:var(--red)}
+  @media(max-width:900px){
+    .nav-tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;background:#fff;border-top:1px solid #dfe7f1;border-bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px rgba(16,43,80,.08)}
+    .nav-tab{flex-direction:column;gap:2px;font-size:11px;padding:6px 10px;border-radius:8px}
+    .nav-tab.active{box-shadow:none;background:#eaf2fd}
+    body{padding-bottom:84px}
+  }`;
+  document.head.appendChild(s);
+})();
 
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23102b50'/><text x='50%25' y='56%25' dominant-baseline='middle' text-anchor='middle' fill='%23f3c44e' font-family='Arial, sans-serif' font-weight='900' font-size='44'>WA</text></svg>">
-  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22WA%20Resolve%20%7C%20Central%20de%20Servi%C3%A7os%22%2C%22short_name%22%3A%22WA%20Resolve%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23102b50%22%2C%22theme_color%22%3A%22%23102b50%22%7D">
-
-  <title>WA Resolve | Central de Serviços</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    :root {
-      --navy: #102b50;
-      --blue: #1d477a;
-      --gold: #f3c44e;
-      --ink: #172235;
-      --muted: #6d7788;
-      --line: #e3e8ef;
-      --bg: #f4f7fb;
-      --green: #198754;
-      --red: #dc3545;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body {
-      background: #eef3f9;
-      color: var(--ink);
-      font: 15px/1.45 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    button, input, select, textarea { font: inherit; }
-    button {
-      cursor: pointer;
-      border: 0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-weight: 700;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    button:hover { opacity: 0.92; }
-    button:active { transform: scale(0.98); }
-    .primary { background: #1672d3; color: #fff; }
-    .secondary { background: #eaf0f8; color: var(--navy); }
-    .gold { background: #f3c44e; color: var(--navy); }
-    .whatsapp-btn { background: #13a765; color: #fff; display: inline-flex; align-items: center; gap: 6px; }
-    .danger-btn { background: #fff0f0; border: 1px solid #ffdddd; color: #c63b48; }
-    
-    .top {
-      min-height: 74px;
-      padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
-      background: linear-gradient(110deg, #102b50 0%, #173b68 100%);
-      border-bottom: 1px solid rgba(255,255,255,.12);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .brand-logo-img { height: 50px; width: auto; max-width: none; object-fit: contain; }
-    
-    .sb-badge {
-      font-size: 12px;
-      padding: 7px 14px;
-      border-radius: 99px;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .sb-on { background: #d1fae5; color: #065f46; }
-    .sb-off { background: #fee2e2; color: #991b1b; }
-    
-    .nav-tabs {
-      display: flex;
-      gap: 8px;
-      background: #f7f9fc;
-      padding: 10px 24px 0;
-      border-bottom: 1px solid #dfe7f1;
-      box-shadow: 0 2px 8px rgba(16,43,80,.04);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .nav-tab {
-      background: transparent;
-      border: 0;
-      padding: 13px 18px;
-      border-radius: 9px 9px 0 0;
-      font-weight: 700;
-      color: #41536c;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-      transition: background 0.2s;
-    }
-    .nav-tab.active {
-      background: #fff;
-      color: #1672d3;
-      box-shadow: inset 0 -3px #1672d3, 0 1px 5px rgba(16,43,80,.05);
-    }
-    
-    .content { padding: 20px 24px 28px; max-width: 1680px; margin: 0 auto; }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .stat {
-      background: #fff;
-      padding: 18px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-      border-left: 4px solid var(--blue);
-    }
-    .stat span { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat strong { display: block; font-size: 26px; margin-top: 6px; color: var(--navy); }
-    
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(360px, .94fr) minmax(480px, 1.12fr);
-      gap: 18px;
-      align-items: stretch;
-    }
-    @media(max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .top { padding-left: 16px; padding-right: 16px; }
-      .nav-tabs { padding-left: 12px; padding-right: 12px; }
-      .content { padding: 14px 12px 24px; }
-    }
-    
-    .panel {
-      background: #fff;
-      border: 1px solid #e0e7f0;
-      border-radius: 13px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 14px rgba(28,58,95,.06);
-      min-width: 0;
-    }
-    .panel h2 { font-size: 19px; margin-bottom: 16px; color: var(--navy); display: flex; align-items: center; gap: 10px; }
-    
-    .field { margin-bottom: 12px; display: grid; gap: 5px; position: relative; }
-    .field label { font-size: 12px; font-weight: 700; color: #42536b; }
-    .field input, .field select, .field textarea {
-      width: 100%;
-      border: 1px solid #d7e0eb;
-      border-radius: 9px;
-      padding: 10px 12px;
-      min-height: 40px;
-      background: #fff;
-      color: #26384f;
-      font-size: 16px;
-      box-shadow: 0 1px 2px rgba(16,43,80,.02);
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .field input:focus, .field select:focus, .field textarea:focus {
-      outline: none;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(29, 71, 122, 0.1);
-    }
-    .field textarea { min-height: 58px; }
-    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-    @media(max-width: 650px) { .two, .three { grid-template-columns: 1fr; } }
-    
-    .card-item {
-      background: #fff;
-      border: 1px solid #e1e7ef;
-      border-radius: 11px;
-      padding: 15px 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 5px rgba(16,43,80,.025);
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .card-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-    .tag {
-      display: inline-block;
-      padding: 5px 12px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 700;
-      background: #e2e8f0;
-      color: var(--navy);
-    }
-    .tag.Em_análise_técnica { background: #fef08a; color: #854d0e; }
-    .tag.Aguardando_aprovação { background: #fef3c7; color: #92400e; }
-    .tag.Aprovado_-_Conserto_iniciado, .tag.Em_conserto { background: #dbeafe; color: #1e40af; }
-    .tag.Pronto_para_retirada, .tag.Concluído, .tag.Concluída, .tag.Confirmada, .tag.Agendada, .tag.Realizada, .tag.Entregue { background: #d1fae5; color: #065f46; }
-    .tag.Não_aprovado, .tag.Reagendar_/_Não_autorizado, .tag.Cancelada { background: #fee2e2; color: var(--red); }
-    
-    .modal {
-      position: fixed; inset: 0; background: rgba(16,43,80,0.5); backdrop-filter: blur(2px);
-      display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 999;
-    }
-    .modal-box {
-      background: #fff; border-radius: 16px; max-width: 580px; width: 100%; padding: 24px;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;
-    }
-    .lock-screen {
-      max-width: 400px; margin: 80px auto; background: #fff; padding: 36px;
-      border-radius: 20px; border: 1px solid var(--line); text-align: center;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.06);
-    }
-
-    .visit-card { border-left: 4px solid #1672d3; }
-    .visit-card:nth-child(even) { border-left-color: #5845d8; }
-    .visit-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-    .visit-person { display:flex; align-items:center; gap:10px; min-width:0; }
-    .visit-avatar {
-      display:flex; align-items:center; justify-content:center; flex:0 0 34px;
-      width:34px; height:34px; border-radius:50%; color:#fff; background:#1672d3;
-      font-size:16px; font-weight:800;
-    }
-    .visit-card:nth-child(even) .visit-avatar { background:#5845d8; }
-    .visit-name { color:#203752; font-size:15px; font-weight:800; overflow-wrap:anywhere; }
-    .visit-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:8px 0 5px; color:#56677d; font-size:12px; }
-    .visit-meta .separator { color:#c0cad7; }
-    .visit-detail { display:flex; align-items:flex-start; gap:8px; margin-top:5px; color:#52637a; font-size:12px; }
-    .visit-detail strong { color:#344861; }
-    .visit-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-    .visit-actions button { font-size:12px; padding:8px 11px; border-radius:8px; }
-    .visit-actions .whatsapp-btn { background:#13a765; }
-    .visit-actions .secondary { background:#eff6ff; border:1px solid #d6e5f6; color:#175ba4; }
-    .visit-actions .danger-btn { background:#fff0f0; border:1px solid #ffdddd; color:#c63b48; }
-    .visit-search {
-      width: min(100%, 310px); min-height:38px; padding:8px 12px;
-      border:1px solid #d7e0eb; border-radius:9px; background:#fff;
-      color:#26384f; font-size:16px;
-    }
-    .visit-empty { padding:34px 12px; color:var(--muted); text-align:center; border:1px dashed #d5dfeb; border-radius:10px; }
-    
-    .table-custom { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-    .table-custom th, .table-custom td { padding: 10px 12px; border: 1px solid var(--line); text-align: left; }
-    .table-custom th { background: #102b50; color: #fff; font-weight: 700; }
-    .table-custom tr:nth-child(even) { background: #f8fafc; }
-
-    @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; background: #fff; color: #000; padding: 20px; font-size: 13px; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-
-<div id="app"></div>
-<div id="printArea" style="display:none;"></div>
-
-<script>
-const SUPABASE_URL = "https://xuletvulgzdnuukynlhs.supabase.co";
-const FIXED_SUPABASE_KEY = "sb_publishable_j7pad31FTUWcxR7NlpN4ng_HssGl2AC";
-
-let supabaseClient = null;
-try {
-  if (window.supabase) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, FIXED_SUPABASE_KEY);
-  }
-} catch(e) {
-  console.warn("Supabase init error:", e);
+/* ---------- 2. Toast no lugar de alert() ---------- */
+function toast(msg) {
+  let w = document.querySelector('.wa-toast-wrap');
+  if (!w) { w = document.createElement('div'); w.className = 'wa-toast-wrap'; document.body.appendChild(w); }
+  const t = document.createElement('div');
+  t.className = 'wa-toast';
+  t.textContent = String(msg);
+  w.appendChild(t);
+  setTimeout(() => t.remove(), 3800);
 }
+window.alert = m => toast(m);
 
-let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
-let companyPixKey = localStorage.getItem("wa_company_pix") || "";
-let companyLogoUrl = localStorage.getItem("wa_company_logo") || "";
-let companyAddress = localStorage.getItem("wa_company_address") || "Mossoró - RN";
-let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
-let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
-let activeTab = localStorage.getItem("wa_active_tab") || "orders";
-let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
-let historySearchQuery = localStorage.getItem("wa_history_search") || "";
-let balanceFilterPeriod = localStorage.getItem("wa_balance_period") || "all";
+/* ---------- 3. Proteção contra HTML injetado (XSS) ---------- */
+const escS = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '’').replace(/\\/g, '/');
+const escDeep = v => typeof v === 'string' ? escS(v)
+  : Array.isArray(v) ? v.map(escDeep)
+  : (v && typeof v === 'object') ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k.startsWith('photo') ? x : escDeep(x)]))
+  : v;
+['renderDashboard', 'viewClientHistory'].forEach(name => {
+  const orig = window[name];
+  window[name] = function () {
+    const bak = [orders, clients, visits];
+    orders = escDeep(orders); clients = escDeep(clients); visits = escDeep(visits);
+    try { return orig.apply(this, arguments); }
+    finally { orders = bak[0]; clients = bak[1]; visits = bak[2]; }
+  };
+});
 
-let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
-let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
-let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
-let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
-
-function formatarDataBR(dataIso) {
-  if (!dataIso) return "-";
-  const partes = String(dataIso).split("T")[0].split("-");
-  if (partes.length === 3) {
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-  return dataIso;
+/* ---------- 4. Login real (Supabase Auth) no lugar do PIN no navegador ---------- */
+function renderLockScreen() {
+  document.getElementById('app').innerHTML = `
+    <header class="top"><div class="brand"><span class="brand-badge">WA RESOLVE</span></div></header>
+    <div class="lock-screen">
+      <div style="font-size:42px;margin-bottom:10px;">🔒</div>
+      <h2 style="color:var(--navy);margin-bottom:6px;">Acesso Restrito</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:18px;">Entre com seu e-mail e senha.</p>
+      <form onsubmit="unlock(event)">
+        <div class="field"><input type="email" id="loginEmail" placeholder="E-mail" autocomplete="username" required></div>
+        <div class="field"><input type="password" id="loginPass" placeholder="Senha" autocomplete="current-password" required></div>
+        <button type="submit" class="primary" style="width:100%;margin-top:10px;">Entrar no Sistema</button>
+      </form>
+    </div>`;
 }
-
-function formatBRL(valor) {
-  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function getNextShortOrderId() {
-  let maxNum = 100;
-  orders.forEach(o => {
-    const m = String(o.id || "").match(/WR-(\d+)/);
-    if (m && m[1]) {
-      const val = parseInt(m[1], 10);
-      if (val > maxNum) maxNum = val;
-    }
+async function unlock(e) {
+  e.preventDefault();
+  if (!supabaseClient) return toast('Sem conexão com a nuvem.');
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: document.getElementById('loginEmail').value.trim(),
+    password: document.getElementById('loginPass').value
   });
-  return "WR-" + (maxNum + 1);
+  if (error) return toast('E-mail ou senha incorretos.');
+  isUnlocked = true;
+  sessionStorage.setItem('wa_unlocked', 'true');
+  renderDashboard(); syncFromSupabase(); loadTokens(); pushConfig();
 }
-
-// Compressão inteligente de foto
-function compressAndResizeImage(file, maxWidth = 1000, quality = 0.75) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = event => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = error => reject(error);
-    };
-    reader.onerror = error => reject(error);
-  });
+async function lock() {
+  if (supabaseClient) await supabaseClient.auth.signOut();
+  isUnlocked = false;
+  sessionStorage.removeItem('wa_unlocked');
+  renderLockScreen();
 }
-
-// Geração de BR Code / EMV PIX padrão Banco Central
-function crc16(str) {
-  let crc = 0xFFFF;
-  for (let c = 0; c < str.length; c++) {
-    crc ^= str.charCodeAt(c) << 8;
-    for (let i = 0; i < 8; i++) {
-      if ((crc & 0x8000) !== 0) {
-        crc = (crc << 1) ^ 0x1021;
-      } else {
-        crc = crc << 1;
-      }
-    }
-  }
-  let hex = (crc & 0xFFFF).toString(16).toUpperCase();
-  return hex.padStart(4, "0");
-}
-
-function emvField(id, val) {
-  const v = String(val);
-  const len = String(v.length).padStart(2, "0");
-  return `${id}${len}${v}`;
-}
-
-function gerarPixPayload(chave, valor, beneficiario = "WA RESOLVE", cidade = "MOSSORO", txid = "***") {
-  if (!chave) return "";
-  const cleanPix = chave.trim();
-  const accInfo = emvField("00", "BR.GOV.BCB.PIX") + emvField("01", cleanPix);
-  
-  let payload = 
-    emvField("00", "01") + 
-    emvField("26", accInfo) + 
-    emvField("52", "0000") + 
-    emvField("53", "986");
-
-  if (Number(valor) > 0) {
-    payload += emvField("54", Number(valor).toFixed(2));
-  }
-
-  const cleanName = beneficiario.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 25);
-  const cleanCity = cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "").slice(0, 15);
-
-  payload += 
-    emvField("58", "BR") + 
-    emvField("59", cleanName) + 
-    emvField("60", cleanCity) + 
-    emvField("62", emvField("05", txid)) + 
-    "6304";
-
-  return payload + crc16(payload);
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  try {
-    let clienteId = null;
-    let visitaId = null;
-
-    const params = new URLSearchParams(window.location.search);
-    clienteId = params.get("cliente");
-    visitaId = params.get("visita");
-
-    if (!clienteId && !visitaId && window.location.hash) {
-      const hashStr = window.location.hash.replace(/^#/, '');
-      const hashParams = new URLSearchParams(hashStr);
-      clienteId = hashParams.get("cliente");
-      visitaId = hashParams.get("visita");
-    }
-
-    if (visitaId) {
-      renderClientVisitView(visitaId);
-    } else if (clienteId) {
-      renderClientView(clienteId);
-    } else if (!isUnlocked) {
-      renderLockScreen();
-    } else {
-      renderDashboard();
-    }
-
-    if (supabaseClient) {
-      syncFromSupabase();
-    }
-  } catch(err) {
-    console.error("Erro no DOMContentLoaded:", err);
-    document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:80px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Painel WA Resolve</h2><p style="color:var(--muted);">Carregando...</p><a href="?" style="display:inline-block; background:var(--blue); color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700;">Acessar Painel Principal</a></div>';
-    setTimeout(() => { window.location.href = window.location.pathname; }, 1500);
+window.addEventListener('DOMContentLoaded', async () => {
+  const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if (q.get('cliente') || q.get('visita') || h.get('cliente') || h.get('visita') || !supabaseClient) return;
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) {
+    if (!isUnlocked) { isUnlocked = true; sessionStorage.setItem('wa_unlocked', 'true'); renderDashboard(); }
+    syncFromSupabase(); loadTokens(); pushConfig();
+  } else if (isUnlocked) {
+    isUnlocked = false; sessionStorage.removeItem('wa_unlocked'); renderLockScreen();
   }
 });
 
-function syncFromSupabase() {
+/* ---------- 5. Configurações (WhatsApp/PIX/logo) salvas na nuvem para o cliente ver ---------- */
+let _lastCfg = '';
+async function pushConfig() {
   if (!supabaseClient) return;
-  supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData, error: cErr }) => {
-    if (!cErr && cData && cData.length > 0) {
-      clients = cData.map(dbClient => {
-        const localMatch = clients.find(lc => String(lc.id) === String(dbClient.id) || (lc.nome && dbClient.nome && lc.nome.toLowerCase() === dbClient.nome.toLowerCase()));
-        return {
-          ...dbClient,
-          endereco: dbClient.endereco || (localMatch && localMatch.endereco ? localMatch.endereco : "")
-        };
-      });
-      clients = clients.concat(clients.filter(lc => !cData.some(dc => String(dc.id) === String(lc.id))));
-      localStorage.setItem("wa_clients", JSON.stringify(clients));
-      if (isUnlocked && activeTab === 'clients' && !window.location.search && !window.location.hash) renderDashboard();
-    }
-  });
-
-  supabaseClient.from("ordens_servico").select("*, clientes(*)").order("id", { ascending: false }).then(({ data: oData, error: oErr }) => {
-    if (!oErr && oData && oData.length > 0) {
-      orders = oData.map(d => ({
-        id: "WR-" + d.id,
-        dbId: d.id,
-        name: d.clientes ? d.clientes.nome : "Cliente",
-        phone: d.clientes ? d.clientes.telefone : "",
-        appliance: d.titulo_servico || "Aparelho",
-        partsUsed: d.pecas_usadas || [],
-        brand: d.marca || "",
-        serialNumber: d.numero_serie || "",
-        sealNumber: d.numero_lacre || "",
-        checklistDamages: d.avarias_iniciais || "",
-        accessoriesLeft: d.acessorios_deixados || "",
-        problem: d.defeito || d.descricao || "",
-        diagnosis: d.diagnostico || "",
-        price: Number(d.orcamento) || 0,
-        refusalFee: Number(d.taxa_recusa) || 0,
-        entryFee: Number(d.valor_entrada) || 0,
-        paymentMethod: d.forma_pagamento || "Pix",
-        photoUrlEntry: d.foto_entrada || d.foto_url || "",
-        photoUrlDefect: d.foto_defeito || "",
-        status: d.status || (Number(d.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
-        created: d.created_at,
-        data_conclusao: d.data_conclusao || (d.status === "Concluído" || d.status === "Pronto para retirada" ? (d.created_at ? d.created_at.split('T')[0] : '') : ''),
-        dias_garantia: d.dias_garantia !== undefined && d.dias_garantia !== null ? Number(d.dias_garantia) : 90
-      }));
-      localStorage.setItem("wa_orders", JSON.stringify(orders));
-      if (isUnlocked && (activeTab === 'orders' || activeTab === 'history' || activeTab === 'balance') && !window.location.search && !window.location.hash) renderDashboard();
-    }
-  });
-
-  supabaseClient.from("visitas").select("*").order("id", { ascending: false }).then(({ data: vData, error: vErr }) => {
-    if (!vErr && vData && vData.length > 0) {
-      visits = vData.map(v => ({
-        id: "VIS-" + v.id,
-        dbId: v.id,
-        cliente_nome: v.cliente_nome,
-        telefone: v.telefone,
-        endereco: v.endereco,
-        data_visita: v.data_visita,
-        horario_visita: v.horario_visita,
-        aparelho_motivo: v.aparelho_motivo,
-        observacoes: v.observacoes,
-        motivo_recusa: v.motivo_recusa || "",
-        status: v.status || "Agendada"
-      }));
-      localStorage.setItem("wa_visits", JSON.stringify(visits));
-      if (isUnlocked && activeTab === 'visits' && !window.location.search && !window.location.hash) renderDashboard();
-    }
-  });
+  const cfg = { id: 1, telefone: companyWhatsApp, pix: companyPixKey, logo: companyLogoUrl, endereco: companyAddress };
+  const j = JSON.stringify(cfg);
+  if (j === _lastCfg) return;
+  const { data } = await supabaseClient.auth.getSession();
+  if (!data.session) return;
+  const { error } = await supabaseClient.from('configuracoes').upsert(cfg);
+  if (!error) _lastCfg = j;
 }
-
-function unlock(e) {
-  e.preventDefault();
-  const input = document.getElementById("pinInput").value.trim();
-  if (input === adminPin) {
-    isUnlocked = true;
-    sessionStorage.setItem("wa_unlocked", "true");
-    renderDashboard();
-  } else {
-    alert("Senha incorreta! A senha padrão é 1234.");
-  }
-}
-
-function lock() {
-  isUnlocked = false;
-  sessionStorage.removeItem("wa_unlocked");
-  renderLockScreen();
-}
-
-function setTab(tab) {
-  activeTab = tab;
-  localStorage.setItem("wa_active_tab", tab);
-  renderDashboard();
-}
-
-function renderLockScreen() {
-  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
-
-  document.getElementById("app").innerHTML = `
-    <header class="top">
-      <div class="brand">
-        ${brandDisplay}
-      </div>
-    </header>
-    <div class="lock-screen">
-      <div style="font-size:42px; margin-bottom:10px;">🔒</div>
-      <h2 style="color:var(--navy); margin-bottom:6px;">Acesso Restrito</h2>
-      <p style="color:var(--muted); font-size:13px; margin-bottom:18px;">Digite a sua senha para acessar as ordens, clientes, peças e balanço mensal.</p>
-      <form onsubmit="unlock(event)">
-        <div class="field">
-          <input type="password" id="pinInput" inputmode="numeric" placeholder="Senha (Padrão: 1234)" autofocus required style="text-align:center; font-size:18px; letter-spacing:3px;">
-        </div>
-        <button type="submit" class="primary" style="width:100%; margin-top:10px;">Entrar no Sistema</button>
-      </form>
-      <small style="display:block; margin-top:14px; color:var(--muted);">Senha padrão: <b>1234</b></small>
-    </div>
-  `;
-}
-
-function renderDashboard() {
-  const sbStatus = supabaseClient 
-    ? '<span class="sb-badge sb-on" onclick="openKeyModal()">● Nuvem Conectada</span>'
-    : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
-
-  const companyBadge = companyWhatsApp 
-    ? '<a href="https://wa.me/55' + companyWhatsApp.replace(/\D/g,'') + '" target="_blank" style="font-size:13px; color:#d1fae5; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:5px;">💬 Meu WhatsApp: (' + companyWhatsApp.slice(0,2) + ') ' + companyWhatsApp.slice(2) + '</a>'
-    : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="openKeyModal()">⚠️ Configurar WhatsApp/PIX</button>';
-
-  const brandDisplay = '<img src="togo.png" alt="WA Resolve" style="height: 50px; width: auto; max-width: none; object-fit: contain;" onerror="this.onerror=null;this.src=\'logo.png\';">';
-
-  const header = `
-    <header class="top">
-      <div class="brand">
-        ${brandDisplay}
-      </div>
-      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        ${companyBadge}
-        ${sbStatus}
-        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="openKeyModal()">⚙️ Config & PIX</button>
-        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="changePin()">🔑 Senha</button>
-        <button class="secondary" style="padding:7px 14px; font-size:12px;" onclick="lock()">🔒 Bloquear</button>
-      </div>
-    </header>
-    <div class="nav-tabs">
-      <button class="nav-tab ${activeTab==='orders'?'active':''}" onclick="setTab('orders')">📋 Ordens de Serviço</button>
-      <button class="nav-tab ${activeTab==='history'?'active':''}" onclick="setTab('history')">🛡️ Histórico & Garantias</button>
-      <button class="nav-tab ${activeTab==='clients'?'active':''}" onclick="setTab('clients')">👥 Meus Clientes</button>
-      <button class="nav-tab ${activeTab==='visits'?'active':''}" onclick="setTab('visits')">📅 Agendamento de Visitas</button>
-      <button class="nav-tab ${activeTab==='parts'?'active':''}" onclick="setTab('parts')">📦 Cadastro de Peças</button>
-      <button class="nav-tab ${activeTab==='balance'?'active':''}" onclick="setTab('balance')">📊 Balanço Financeiro</button>
-    </div>
-  `;
-
-  let body = "";
-  if (activeTab === "clients") {
-    body = renderClients();
-  } else if (activeTab === "visits") {
-    body = renderVisits();
-  } else if (activeTab === "parts") {
-    body = renderParts();
-  } else if (activeTab === "balance") {
-    body = renderBalance();
-  } else if (activeTab === "history") {
-    body = renderHistory();
-  } else {
-    body = renderOrders();
-  }
-
-  document.getElementById("app").innerHTML = header + '<div class="content">' + body + '</div>';
-}
-
-function renderOrders() {
-  const inAnalysis = orders.filter(o => o.status === "Em análise técnica").length;
-  const awaiting = orders.filter(o => o.status === "Aguardando aprovação").length;
-  const inProgress = orders.filter(o => o.status.includes("Aprovado") || o.status === "Em conserto").length;
-  const refused = orders.filter(o => o.status === "Não aprovado");
-  const totalRefusalFees = refused.reduce((sum, o) => sum + (Number(o.refusalFee) || 0), 0);
-
-  let ordersListHtml = "";
-  if (orders.length === 0) {
-    ordersListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma ordem registrada.</p>';
-  } else {
-    orders.slice().reverse().forEach(o => {
-      const entryFee = Number(o.entryFee || 0);
-      const price = Number(o.price || 0);
-      const remaining = Math.max(0, price - entryFee);
-      const valorExibicao = price > 0 ? formatBRL(price) : '<span style="color:#d97706; font-size:13px;">A definir (Em análise)</span>';
-
-      ordersListHtml += `
-        <div class="card-item visit-card">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div>
-              <strong>${o.name}</strong> <small style="color:var(--muted);">· ${o.id}</small>
-              <div style="font-size:13px; color:#334155; margin-top:2px;">
-                ${o.appliance} ${o.brand ? '· ' + o.brand : ''}
-                ${o.serialNumber ? ` | <span style="color:#64748b;">SN: ${o.serialNumber}</span>` : ''}
-                ${o.sealNumber ? ` | <span style="color:var(--blue); font-weight:700;">Lacre: ${o.sealNumber}</span>` : ''}
-              </div>
-              <div style="font-size:12px; color:var(--muted);">WhatsApp: <strong>${o.phone || 'Não informado'}</strong></div>
-              ${entryFee > 0 ? `<div style="font-size:11px; color:var(--green); font-weight:600;">Sinal Pago: ${formatBRL(entryFee)} | Restante: ${price > 0 ? formatBRL(remaining) : 'A calcular'} (${o.paymentMethod || 'Pix'})</div>` : ''}
-              ${o.refusalFee > 0 ? `<div style="font-size:11px; color:var(--red); margin-top:2px;">Taxa de recusa/custo: R$ ${Number(o.refusalFee).toFixed(2)}</div>` : ''}
-              ${o.data_conclusao ? `<div style="font-size:11px; color:var(--green); margin-top:2px;">🛡️ Concluído em: ${formatarDataBR(o.data_conclusao)} (${o.dias_garantia || 90}d garantia)</div>` : ''}
-            </div>
-            <div style="text-align:right;">
-              <strong style="color:var(--navy); font-size:16px;">${valorExibicao}</strong>
-              <div><span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span></div>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
-            ${o.photoUrlEntry ? `<a href="${o.photoUrlEntry}" target="_blank" style="font-size:12px; color:var(--navy); font-weight:700; background:#e2e8f0; padding:3px 8px; border-radius:6px; text-decoration:none;">📷 Ver Foto de Entrada</a>` : ''}
-            ${o.photoUrlDefect ? `<a href="${o.photoUrlDefect}" target="_blank" style="font-size:12px; color:var(--red); font-weight:700; background:#fee2e2; padding:3px 8px; border-radius:6px; text-decoration:none;">🔬 Ver Foto do Defeito</a>` : ''}
-          </div>
-
-          <div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
-            ${o.status === "Em análise técnica" || Number(o.price || 0) === 0 ? `
-              <button class="gold" style="font-size:12px; padding:6px 12px;" onclick="editOrder('${o.id}')">🔍 Lançar Orçamento & Foto Defeito</button>
-            ` : `
-              <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px;" onclick="sendOrderToClient('${o.phone}', '${o.id}', '${encodeURIComponent(o.name)}', '${encodeURIComponent(o.appliance)}', '${o.price}', '${encodeURIComponent(o.photoUrlDefect || o.photoUrlEntry || '')}', '${encodeURIComponent(o.diagnosis||o.problem||'')}')">📲 Link Orçamento</button>
-            `}
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 12px; background:#0284c7;" onclick="openQuickMessagesModal('${o.id}')">💬 Mensagens Rápidas</button>
-            ${Number(o.price || 0) > 0 ? `<button class="secondary" style="font-size:12px; padding:6px 10px; background:#10b981; color:#fff;" onclick="openPixQrModal('${o.id}')">💳 QR Code PIX</button>` : ''}
-            <button class="secondary" style="font-size:12px; padding:6px 10px; background:#eff6ff; color:#175ba4;" onclick="printOrderSheet('${o.id}')">🖨️ Comprovante / Termo</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editOrder('${o.id}')">✏️ Editar</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="copyLink('${o.id}')">📋 Copiar Link</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="changeOrderStatus('${o.id}')">🔄 Status</button>
-            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteOrder('${o.id}')">🗑️ Excluir</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  let partsPickerHtml = `
-    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:9px; padding:12px;">
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <select id="selectPartToAdd" style="flex:1; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; background:#fff; font-size:16px;">
-          <option value="">Selecione uma peça do estoque...</option>
-          ${parts.map(p => `<option value="${p.id}" data-nome="${encodeURIComponent(p.nome)}" data-preco="${p.preco}" data-estoque="${p.estoque}">${p.nome} (Est: ${p.estoque} - R$ ${Number(p.preco).toFixed(2)})</option>`).join('')}
-        </select>
-        <button type="button" class="secondary" onclick="addPartToOrder()" style="padding:8px 14px; font-size:13px; background:#1672d3; color:#fff;">＋ Adicionar</button>
-      </div>
-      <div id="selectedPartsContainer" style="display:grid; gap:6px; min-height:36px;">
-        <small style="color:var(--muted); font-style:italic;">Nenhuma peça adicionada a esta ordem ainda.</small>
-      </div>
-      <input type="hidden" id="osPartsJson" value="[]">
-    </div>
-  `;
-
-  let clientOptions = clients.map(c => `<option value="${c.nome}">`).join('');
-
-  return `
-    <div class="stats">
-      <div class="stat"><span>Total de Ordens</span><strong>${orders.length}</strong></div>
-      <div class="stat" style="border-left-color: #f59e0b;"><span>Em Análise de Bancada</span><strong style="color:#d97706;">${inAnalysis}</strong></div>
-      <div class="stat"><span>Aguardando Aprovação</span><strong>${awaiting}</strong></div>
-      <div class="stat"><span>Em Conserto / Aprovados</span><strong>${inProgress}</strong></div>
-      <div class="stat" style="border-left-color: var(--red);">
-        <span>Taxas de Não Aprovados</span>
-        <strong style="color:var(--red);">R$ ${totalRefusalFees.toFixed(2)}</strong>
-        <small style="font-size:11px; color:var(--muted);">${refused.length} orçamento(s) recusado(s)</small>
-      </div>
-    </div>
-    
-    <div class="layout">
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📋</span> Entrada / Nova Ordem</h2>
-        <form onsubmit="saveOrder(event)">
-          <div class="two">
-            <div class="field">
-              <label>Nome do Cliente *</label>
-              <input id="osName" required placeholder="Digite ou selecione o cliente" list="clientListOptions" oninput="autoFillOrderClient(this.value)" onchange="autoFillOrderClient(this.value)">
-              <datalist id="clientListOptions">
-                ${clientOptions}
-              </datalist>
-            </div>
-            <div class="field">
-              <label>WhatsApp do Cliente (com DDD) *</label>
-              <input id="osPhone" required placeholder="Ex: 84999990000" inputmode="tel">
-            </div>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>Aparelho *</label>
-              <input id="osAppliance" required placeholder="Ex.: Geladeira Frost Free">
-            </div>
-            <div class="field">
-              <label>Marca / Modelo</label>
-              <input id="osBrand" placeholder="Ex.: Brastemp 400L">
-            </div>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>Número de Série / IMEI</label>
-              <input id="osSerial" placeholder="Ex.: SN-984210492">
-            </div>
-            <div class="field">
-              <label>Nº do Lacre de Garantia (Selo Casca de Ovo)</label>
-              <input id="osSeal" placeholder="Ex.: LACRE-0412">
-            </div>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>🔍 Checklist de Entrada (Avarias prévias / Estado físico)</label>
-              <input id="osChecklistDamages" placeholder="Ex.: Gabinete arranhado, parafuso faltando, sem pés">
-            </div>
-            <div class="field">
-              <label>🔌 Acessórios Deixados com o Aparelho</label>
-              <input id="osAccessoriesLeft" placeholder="Ex.: Cabo de força original, prato de vidro, 1 prateleira">
-            </div>
-          </div>
-          <div class="field">
-            <label>Defeito Relatado pelo Cliente *</label>
-            <textarea id="osProblem" rows="2" required placeholder="O que o cliente informou sobre o defeito?"></textarea>
-          </div>
-
-          <!-- FOTO 1: ENTRADA DO APARELHO -->
-          <div class="field" style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:10px;">
-            <label>📷 Foto do Equipamento no Balcão (Estado de Entrada)</label>
-            <input type="file" id="osFileInputEntry" accept="image/*" capture="environment" onchange="handleEntryImageUpload(event)" style="padding:6px; background:#fff; border:1px solid #cbd5e1;">
-            <input type="hidden" id="osPhotoEntry">
-            <div id="previewEntryContainer" style="margin-top:8px; display:none; text-align:center;">
-              <img id="imagePreviewEntry" src="" alt="Foto de Entrada" style="max-height:120px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid var(--line);">
-            </div>
-            <small style="font-size:11px; color:var(--muted);">Tire a foto mostrando o aparelho inteiro e avarias para segurança do cliente e da oficina.</small>
-          </div>
-
-          <div class="field">
-            <label>Diagnóstico Técnico / Solução <span style="font-weight:400; color:var(--muted);">(Opcional na entrada - preencha na bancada)</span></label>
-            <textarea id="osDiagnosis" rows="2" placeholder="Deixe em branco se o aparelho acabou de entrar para análise"></textarea>
-          </div>
-          <div class="three">
-            <div class="field">
-              <label>Valor Orçamento (R$) <span style="font-weight:400; color:var(--muted);">(Opcional)</span></label>
-              <input id="osPrice" type="number" step="0.01" placeholder="0.00 (a definir após avaliação)">
-            </div>
-            <div class="field">
-              <label>Valor de Entrada / Sinal (R$)</label>
-              <input id="osEntryFee" type="number" step="0.01" value="0.00" placeholder="0.00">
-            </div>
-            <div class="field">
-              <label>Forma de Pagamento</label>
-              <select id="osPaymentMethod">
-                <option value="Pix">Pix</option>
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Cartão de Crédito">Cartão de Crédito</option>
-                <option value="Cartão de Débito">Cartão de Débito</option>
-                <option value="A Combinar">A Combinar</option>
-              </select>
-            </div>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>Taxa por Não Aprovação (R$) *</label>
-              <input id="osRefusalFee" required type="number" step="0.01" value="30.00" placeholder="Ex: 30.00">
-              <small style="font-size:11px; color:var(--muted);">Custo cobrado se recusado (análise/deslocamento).</small>
-            </div>
-            <div class="field">
-              <label>Prazo de Garantia (Dias)</label>
-              <input id="osWarrantyDays" type="number" value="90" min="0" placeholder="90">
-            </div>
-          </div>
-          <div class="field">
-            <label>📦 Selecionar Peças Utilizadas (Preencher na bancada)</label>
-            ${partsPickerHtml}
-          </div>
-          <button type="submit" class="primary" style="width:100%; margin-top:8px;">📥 Dar Entrada no Equipamento / Salvar Ordem</button>
-        </form>
-      </div>
-
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📄</span> Ordens Cadastradas (${orders.length})</h2>
-        <div>
-          ${ordersListHtml}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// Upload e compressão da Foto 1 (Entrada)
-async function handleEntryImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+(function () {
+  const orig = window.renderDashboard;
+  window.renderDashboard = function () { orig.apply(this, arguments); pushConfig(); };
+})();
+async function loadPublicConfig() {
   try {
-    const compressedBase64 = await compressAndResizeImage(file);
-    document.getElementById("osPhotoEntry").value = compressedBase64;
-    const preview = document.getElementById("imagePreviewEntry");
-    preview.src = compressedBase64;
-    document.getElementById("previewEntryContainer").style.display = "block";
-  } catch(err) {
-    console.error("Erro ao comprimir imagem:", err);
-  }
+    const { data } = await supabaseClient.rpc('config_publica');
+    if (data) { companyWhatsApp = data.telefone || ''; companyPixKey = data.pix || ''; companyLogoUrl = data.logo || ''; }
+  } catch (e) { console.warn(e); }
 }
 
-// Upload e compressão da Foto 2 (Defeito/Bancada no Modal de Edição)
-async function handleDefectImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  try {
-    const compressedBase64 = await compressAndResizeImage(file);
-    document.getElementById("editOsPhotoDefect").value = compressedBase64;
-    const preview = document.getElementById("editImagePreviewDefect");
-    preview.src = compressedBase64;
-    document.getElementById("editPreviewDefectContainer").style.display = "block";
-  } catch(err) {
-    console.error("Erro ao comprimir imagem de defeito:", err);
-  }
+/* ---------- 6. Links com token aleatório (não dá mais para adivinhar o nº) ---------- */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const _tk = { o: {}, v: {} };
+async function loadTokens() {
+  if (!supabaseClient) return;
+  const a = await supabaseClient.from('ordens_servico').select('id,token');
+  (a.data || []).forEach(r => _tk.o[r.id] = r.token);
+  const b = await supabaseClient.from('visitas').select('id,token');
+  (b.data || []).forEach(r => _tk.v[r.id] = r.token);
+}
+function getOrderDatabaseId(orderId) {
+  const o = orders.find(i => String(i.id) === String(orderId));
+  if (!o || !o.dbId) return null;
+  if (!_tk.o[o.dbId]) loadTokens();
+  return _tk.o[o.dbId] || null;
+}
+function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, aparelho, visitId) {
+  const clean = (phone || '').replace(/\D/g, '');
+  if (!clean) return toast('Esta visita não possui WhatsApp do cliente.');
+  const v = visits.find(i => String(i.id) === String(visitId));
+  const token = v && _tk.v[v.dbId];
+  if (!token) { loadTokens(); return toast('Preparando o link, tente de novo em 2 segundos.'); }
+  const texto = `Olá, *${decodeURIComponent(clientName)}*! Confirmando a visita técnica da WA Resolve no dia ${formatarDataBR(dataIso)} no horário ${decodeURIComponent(horario)}.\n\n👉 *Clique para responder SIM ou NÃO online:*\n${getPublicSiteBaseUrl()}#visita=${token}`;
+  window.open(`https://wa.me/${clean.startsWith('55') ? clean : '55' + clean}?text=${encodeURIComponent(texto)}`, '_blank');
 }
 
-function openQuickMessagesModal(id) {
-  const o = orders.find(item => String(item.id) === String(id));
-  if (!o) return;
+/* ---------- 7. Páginas públicas do cliente (orçamento e visita) ---------- */
+const pubShell = (inner, title) => `
+  <header class="top"><div class="brand"><span class="brand-badge">WA RESOLVE</span><span>${title}</span></div></header>
+  <div style="max-width:600px;margin:20px auto;background:#fff;border-radius:14px;padding:22px;border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.05);">${inner}</div>`;
+const pubMsg = t => pubShell(`<h2 style="color:var(--navy);text-align:center;">${t}</h2><p style="text-align:center;color:var(--muted);margin-top:8px;">Fale com a WA Resolve para receber um novo link.</p>`, 'Acompanhamento');
+const pubLogo = () => companyLogoUrl ? `<div style="text-align:center;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line);"><img src="${escS(companyLogoUrl)}" alt="Logo" style="max-height:85px;max-width:240px;object-fit:contain;"></div>` : '';
+const pubWhats = txt => {
+  const p = (companyWhatsApp || '').replace(/\D/g, '');
+  return p ? `<button class="whatsapp-btn" style="width:100%;margin-top:10px;padding:12px;justify-content:center;" onclick="window.open('https://wa.me/55${p}?text=${encodeURIComponent(txt)}','_blank')">Falar com a Assistência no WhatsApp</button>` : '';
+};
+let _tok = '';
 
-  const cleanPhone = (o.phone || "").replace(/\D/g, "");
-  if (!cleanPhone) return alert("Esta ordem não possui telefone cadastrado.");
-  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
+async function renderClientView(token) {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div style="text-align:center;padding:60px;"><h2>Carregando orçamento...</h2></div>';
+  if (!supabaseClient || !UUID.test(token || '')) { app.innerHTML = pubMsg('Link inválido'); return; }
+  _tok = token;
+  await loadPublicConfig();
+  const { data, error } = await supabaseClient.rpc('get_ordem_publica', { p_token: token });
+  if (error || !data) { app.innerHTML = pubMsg('Orçamento não localizado'); return; }
+  displayClientOrderPage(data);
+}
 
-  const preco = Number(o.price || 0);
-  const entrada = Number(o.entryFee || 0);
-  const restante = Math.max(0, preco - entrada);
+function displayClientOrderPage(d) {
+  const o = {
+    id: 'WR-' + d.id, status: d.status || 'Em análise técnica',
+    preco: Number(d.orcamento) || 0, entrada: Number(d.valor_entrada) || 0, taxa: Number(d.taxa_recusa) || 0
+  };
+  const restante = Math.max(0, o.preco - o.entrada);
+  const valorPix = restante > 0 ? restante : o.preco;
+  const st = o.status;
+  const recusado = st === 'Não aprovado';
+  const aprovado = st.toLowerCase().includes('aprovado') && !recusado;
+  const pronto = ['Pronto para retirada', 'Concluído', 'Entregue'].includes(st);
+  const idx = pronto ? 4 : (aprovado || st === 'Em conserto') ? 3 : (st === 'Aguardando aprovação' || recusado) ? 2 : 1;
+  const steps = ['Recebido', 'Em análise', 'Orçamento', 'Conserto', 'Pronto'];
+  const timeline = '<div class="wa-steps">' + steps.map((s, i) => {
+    const cls = recusado && i === 2 ? 'stop' : i < idx ? 'done' : i === idx ? 'now' : '';
+    return `<div class="wa-step ${cls}"><i>${i < idx ? '✓' : i + 1}</i>${s}</div>`;
+  }).join('') + '</div>';
 
-  const msgEntrada = encodeURIComponent(
-`Olá, *${o.name}*! Tudo bem?
-Confirmamos a entrada do seu equipamento (*${o.appliance}* - ${o.brand || ''}) na assistência técnica *WA Resolve* sob a Ordem *${o.id}*.
-Defeito relatado: ${o.problem || 'Em análise'}
-Assim que o diagnóstico e orçamento forem concluídos na bancada, enviaremos os detalhes para sua aprovação!`
-  );
+  const foto = d.foto_defeito || d.foto_entrada || d.foto_url || '';
+  const fotoHtml = foto ? `<div style="margin:16px 0;text-align:center;background:#f8fafc;border-radius:12px;padding:12px;border:1px solid var(--line);">
+    <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">${d.foto_defeito ? 'Foto do defeito constatado em bancada' : 'Foto do equipamento no recebimento'}</p>
+    <img src="${escS(foto)}" alt="Aparelho" style="max-width:100%;max-height:320px;border-radius:8px;object-fit:contain;"></div>` : '';
 
-  const msgPronto = encodeURIComponent(
-`Olá, *${o.name}*! Tudo bem?
-Passando para avisar que o seu(sua) *${o.appliance}* (${o.brand || ''}) já está pronto e 100% testado aqui na *WA Resolve*! 🛠️✅
+  let pix = '', payload = '';
+  if (companyPixKey && valorPix > 0 && !recusado) {
+    payload = gerarPixPayload(companyPixKey, valorPix, 'WA RESOLVE', 'MOSSORO', 'OS' + d.id);
+    pix = `<div style="margin-top:16px;background:#f0fdf4;border:1px dashed #16a34a;border-radius:12px;padding:16px;text-align:center;">
+      <p style="font-size:14px;font-weight:700;color:#166534;">Pagar via PIX</p>
+      <p style="font-size:12px;color:#15803d;margin-bottom:10px;">Valor: <strong>${formatBRL(valorPix)}</strong></p>
+      <div id="clientPixQrContainer" style="display:flex;justify-content:center;margin:0 auto 12px;background:#fff;padding:10px;border-radius:10px;border:1px solid #bbf7d0;width:190px;height:190px;"></div>
+      <button class="primary" style="width:100%;background:#16a34a;" onclick="copyPixDirect('${payload}')">Copiar código PIX (Copia e Cola)</button></div>`;
+  }
 
-${restante > 0 ? `💰 *Saldo restante na entrega:* ${formatBRL(restante)}\n` : ''}🛡️ *Garantia do serviço:* ${o.dias_garantia || 90} dias.
-Ficamos no aguardo para retirada ou combinar a entrega!`
-  );
+  let acoes;
+  if (o.preco === 0 || st === 'Em análise técnica') {
+    acoes = `<div style="margin-top:20px;background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:16px;text-align:center;"><h3 style="color:#854d0e;font-size:16px;">Equipamento em análise técnica</h3><p style="color:#a16207;font-size:14px;">O orçamento e a foto do defeito aparecerão aqui assim que a análise terminar.</p></div>${pubWhats('Olá! Estou vendo a minha Ordem ' + o.id)}`;
+  } else if (recusado) {
+    acoes = `<div style="margin-top:20px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;text-align:center;"><h3 style="color:#991b1b;font-size:16px;">Orçamento não aprovado</h3>${o.taxa > 0 ? `<p style="font-size:13px;color:#991b1b;">Taxa de análise: ${formatBRL(o.taxa)}</p>` : ''}</div>${pubWhats('Olá! Sobre a minha Ordem ' + o.id)}`;
+  } else if (aprovado || pronto) {
+    acoes = `<div style="margin-top:20px;background:#d1fae5;border:1px solid #10b981;border-radius:10px;padding:16px;text-align:center;"><h3 style="color:#065f46;font-size:16px;">${pronto ? 'Seu aparelho está pronto!' : 'Orçamento aprovado'}</h3><p style="color:#047857;font-size:14px;">${pronto ? 'Combine a retirada ou entrega pelo WhatsApp.' : 'O conserto já foi iniciado pela nossa equipe.'}</p></div>${pix}${pubWhats('Olá! Sobre a minha Ordem ' + o.id)}`;
+  } else {
+    acoes = `<div style="margin-top:20px;display:grid;gap:10px;">
+      <button class="primary" style="width:100%;padding:14px;background:var(--green);font-size:16px;" onclick="responderOrcamento('Aprovado - Conserto iniciado')">Aprovar orçamento</button>
+      <button class="danger-btn" style="width:100%;padding:12px;font-size:15px;" onclick="if(confirm('Deseja realmente recusar o orçamento?'))responderOrcamento('Não aprovado')">Não aprovar (recusar)</button>
+      ${pix}${pubWhats('Olá! Estou vendo o orçamento da Ordem ' + o.id)}</div>`;
+  }
 
-  const msgAguardandoPeca = encodeURIComponent(
-`Olá, *${o.name}*! Aqui é da assistência técnica *WA Resolve*.
-Passando para atualizar o status da sua Ordem (*${o.id}*): seu equipamento (*${o.appliance}*) já foi avaliado em bancada e está aguardando a chegada de um componente específico para finalizarmos o serviço com total garantia e segurança.
-
-Assim que a peça chegar e o reparo for concluído, te avisaremos imediatamente!`
-  );
-
-  const msgCobranca = encodeURIComponent(
-`Olá, *${o.name}*! Segue o lembrete da *WA Resolve* referente à Ordem *${o.id}* (${o.appliance}).
-Saldo pendente: *${formatBRL(restante)}*.
-Chave PIX da assistência: ${companyPixKey || companyWhatsApp || 'Consulte-nos'}
-
-Qualquer dúvida, estamos à disposição!`
-  );
-
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:12px;">💬 Mensagens Rápidas WhatsApp (${o.id})</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Envie comunicados profissionais direto para o WhatsApp de <strong>${o.name}</strong>:</p>
-
-      <div style="display:grid; gap:10px;">
-        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#475569; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgEntrada}', '_blank'); this.closest('.modal').remove();">
-          📥 1. Confirmar Entrada do Aparelho na Oficina
-        </button>
-
-        <button class="whatsapp-btn" style="padding:12px; font-size:14px; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgPronto}', '_blank'); this.closest('.modal').remove();">
-          🟢 2. Aparelho Pronto para Retirada
-        </button>
-
-        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#d97706; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgAguardandoPeca}', '_blank'); this.closest('.modal').remove();">
-          🟡 3. Em Bancada - Aguardando Chegada de Peça
-        </button>
-
-        <button class="whatsapp-btn" style="padding:12px; font-size:14px; background:#2563eb; justify-content:center;" onclick="window.open('https://wa.me/${fullPhone}?text=${msgCobranca}', '_blank'); this.closest('.modal').remove();">
-          🔵 4. Lembrete de Saldo Restante / Pagamento
-        </button>
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
-      </div>
+  const pecas = (d.pecas_usadas || []).map(p => `<li>${escS(p.nome)}</li>`).join('');
+  document.getElementById('app').innerHTML = pubShell(`
+    ${pubLogo()}
+    <div style="text-align:center;">
+      <span class="tag ${escS(st).replace(/\s+/g, '_')}" style="font-size:13px;padding:6px 14px;">${escS(st)}</span>
+      <h2 style="color:var(--navy);margin-top:10px;">${escS(d.titulo_servico || 'Aparelho')}</h2>
+      <p style="color:var(--muted);">${d.marca ? escS(d.marca) + ' · ' : ''}Ordem ${o.id}</p>
+      ${d.numero_lacre ? `<p style="color:var(--blue);font-size:12px;font-weight:700;">Selo de garantia: ${escS(d.numero_lacre)}</p>` : ''}
     </div>
-  `;
-  document.body.appendChild(modal);
-}
+    ${timeline}${fotoHtml}
+    <div style="border-top:1px solid var(--line);padding-top:16px;">
+      ${pecas ? `<div style="margin-bottom:14px;background:#f8fafc;border-radius:10px;padding:12px;border:1px solid var(--line);"><p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px;">Peças / componentes necessários:</p><ul style="margin-left:18px;font-size:13px;">${pecas}</ul></div>` : ''}
+      <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${escS(d.cliente_nome || '')}</p>
+      <p style="margin-bottom:8px;"><strong>Defeito relatado:</strong> ${escS(d.defeito || d.descricao || 'Não especificado')}</p>
+      <p style="margin-bottom:8px;"><strong>Diagnóstico técnico:</strong> ${escS(d.diagnostico || 'Em avaliação de bancada')}</p>
+      <p style="margin-bottom:8px;font-size:18px;"><strong>Valor total:</strong> <span style="color:var(--green);font-weight:800;">${o.preco > 0 ? formatBRL(o.preco) : 'A definir após análise'}</span></p>
+      ${o.entrada > 0 ? `<p style="font-size:14px;color:#166534;"><strong>Sinal pago:</strong> ${formatBRL(o.entrada)} | <strong>Saldo na entrega:</strong> ${formatBRL(restante)}</p>` : ''}
+      ${o.taxa > 0 && !aprovado && !pronto ? `<p style="font-size:12px;color:var(--red);">* Taxa de análise caso não aprove: ${formatBRL(o.taxa)}</p>` : ''}
+    </div>${acoes}`, 'Acompanhamento de Orçamento');
 
-function openPixQrModal(id) {
-  const o = orders.find(item => String(item.id) === String(id));
-  if (!o) return;
-
-  if (!companyPixKey) {
-    alert("Por favor, configure sua Chave PIX primeiro no botão '⚙️ Config & PIX' no topo da tela.");
-    openKeyModal();
-    return;
-  }
-
-  const preco = Number(o.price || 0);
-  const entrada = Number(o.entryFee || 0);
-  const restante = Math.max(0, preco - entrada);
-  const valorCobrado = restante > 0 ? restante : preco;
-
-  if (valorCobrado <= 0) {
-    alert("O orçamento desta ordem ainda está em análise (R$ 0,00). Defina o valor ao editar a ordem para gerar o QR Code.");
-    return;
-  }
-
-  const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
-  const pixPayload = gerarPixPayload(companyPixKey, valorCobrado, "WA RESOLVE", "MOSSORO", txid);
-
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box" style="text-align:center;">
-      <h3 style="color:var(--navy); margin-bottom:6px;">💳 Pagamento PIX - ${o.id}</h3>
-      <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">Valor com preenchimento automático: <strong style="color:var(--green); font-size:16px;">${formatBRL(valorCobrado)}</strong></p>
-      
-      <div id="pixQrContainer" style="display:flex; justify-content:center; margin:16px auto; background:#fff; padding:10px; border-radius:10px; border:1px solid #cbd5e1; width:220px; height:220px;"></div>
-
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px; font-family:monospace; font-size:11px; word-break:break-all; max-height:70px; overflow-y:auto; margin-bottom:12px; color:#334155;">
-        ${pixPayload}
-      </div>
-
-      <div style="display:flex; gap:8px; justify-content:center;">
-        <button class="primary" style="background:#16a34a;" onclick="copyPixDirect('${pixPayload}')">📋 Copiar Código Pix</button>
-        <button class="secondary" onclick="this.closest('.modal').remove()">Fechar</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  setTimeout(() => {
-    new QRCode(document.getElementById("pixQrContainer"), {
-      text: pixPayload,
-      width: 200,
-      height: 200,
-      colorDark: "#102b50",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M
-    });
+  if (payload) setTimeout(() => {
+    const el = document.getElementById('clientPixQrContainer');
+    if (el) new QRCode(el, { text: payload, width: 170, height: 170, colorDark: '#102b50', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
   }, 60);
 }
 
-function renderHistory() {
-  const completedOrders = orders.filter(o => 
-    o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue"
-  );
+async function responderOrcamento(status) {
+  const { data, error } = await supabaseClient.rpc('responder_ordem', { p_token: _tok, p_status: status });
+  if (error || !data) return toast('Não foi possível registrar sua resposta. Tente novamente.');
+  toast('Resposta registrada. Obrigado!');
+  renderClientView(_tok);
+}
 
-  let totalFaturamento = 0;
-  let totalCustoPecas = 0;
-  let ativasCount = 0;
-  let expiradasCount = 0;
+async function renderClientVisitView(token) {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div style="text-align:center;padding:60px;"><h2>Carregando visita...</h2></div>';
+  if (!supabaseClient || !UUID.test(token || '')) { app.innerHTML = pubMsg('Link inválido'); return; }
+  _tok = token;
+  await loadPublicConfig();
+  const { data, error } = await supabaseClient.rpc('get_visita_publica', { p_token: token });
+  if (error || !data) { app.innerHTML = pubMsg('Visita não encontrada'); return; }
+  displayClientVisitPage(data);
+}
 
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-
-  const filtered = completedOrders.filter(o => {
-    if (!historySearchQuery) return true;
-    const q = historySearchQuery.toLowerCase();
-    return (o.name && o.name.toLowerCase().includes(q)) ||
-           (o.appliance && o.appliance.toLowerCase().includes(q)) ||
-           (o.id && o.id.toLowerCase().includes(q)) ||
-           (o.sealNumber && o.sealNumber.toLowerCase().includes(q)) ||
-           (o.brand && o.brand.toLowerCase().includes(q));
-  });
-
-  let rowsHtml = "";
-  if (filtered.length === 0) {
-    rowsHtml = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Nenhum serviço concluído encontrado no histórico.</td></tr>`;
-  } else {
-    filtered.forEach(o => {
-      const preco = Number(o.price) || 0;
-      const custo = (o.partsUsed && Array.isArray(o.partsUsed)) 
-        ? o.partsUsed.reduce((s, p) => s + (Number(p.preco) || 0) * (Number(p.qtd) || 1), 0)
-        : 0;
-      const lucro = preco - custo;
-
-      totalFaturamento += preco;
-      totalCustoPecas += custo;
-
-      const dataBaseStr = o.data_conclusao || (o.created ? o.created.split('T')[0] : '');
-      const diasGarantia = Number(o.dias_garantia !== undefined ? o.dias_garantia : 90);
-
-      let dataFimFormatada = "-";
-      let statusGarantiaBadge = '<span class="tag" style="background:#f1f5f9; color:#64748b;">Sem data</span>';
-
-      if (dataBaseStr && diasGarantia > 0) {
-        const [ano, mes, dia] = dataBaseStr.split('-');
-        const dtFim = new Date(ano, mes - 1, dia);
-        dtFim.setDate(dtFim.getDate() + diasGarantia);
-
-        dataFimFormatada = formatarDataBR(dtFim.toISOString().split('T')[0]);
-
-        if (hoje <= dtFim) {
-          const diffMs = dtFim - hoje;
-          const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          statusGarantiaBadge = `<span class="tag" style="background:#d1fae5; color:#065f46;">Ativa (${diffDias}d restam)</span>`;
-          ativasCount++;
-        } else {
-          statusGarantiaBadge = `<span class="tag" style="background:#f1f5f9; color:#64748b;">Expirada</span>`;
-          expiradasCount++;
-        }
-      }
-
-      rowsHtml += `
-        <tr>
-          <td>
-            <strong>${o.id}</strong>
-            ${o.sealNumber ? `<br><small style="color:var(--blue);">Lacre: ${o.sealNumber}</small>` : ''}
-          </td>
-          <td>
-            <strong>${o.name}</strong><br>
-            <small style="color:var(--muted);">${o.appliance} ${o.brand ? '· ' + o.brand : ''}</small>
-          </td>
-          <td>${formatarDataBR(dataBaseStr)}</td>
-          <td>
-            <div style="font-size:12px;">
-              <span>Início: <strong>${formatarDataBR(dataBaseStr)}</strong></span><br>
-              <span>Fim: <strong>${dataFimFormatada}</strong> (${diasGarantia} dias)</span>
-            </div>
-          </td>
-          <td>${statusGarantiaBadge}</td>
-          <td style="text-align:right; font-weight:700; color:var(--navy);">${formatBRL(preco)}</td>
-          <td style="text-align:right; font-weight:700; color:var(--green);">${formatBRL(lucro)}</td>
-        </tr>
-      `;
-    });
-  }
-
-  const lucroLiquidoGeral = totalFaturamento - totalCustoPecas;
-
-  return `
-    <div class="stats">
-      <div class="stat">
-        <span>Serviços Realizados</span>
-        <strong>${completedOrders.length}</strong>
-        <small style="color:var(--muted);">${ativasCount} com garantia ativa</small>
-      </div>
-      <div class="stat" style="border-left-color: var(--green);">
-        <span>Faturamento Geral</span>
-        <strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong>
-        <small style="color:var(--muted);">Total faturado no histórico</small>
-      </div>
-      <div class="stat" style="border-left-color: var(--red);">
-        <span>Custo Geral Peças</span>
-        <strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong>
-        <small style="color:var(--muted);">Peças consumidas do estoque</small>
-      </div>
-      <div class="stat" style="border-left-color: #10b981;">
-        <span>Lucro Líquido Real</span>
-        <strong style="color:#10b981;">${formatBRL(lucroLiquidoGeral)}</strong>
-        <small style="color:var(--muted);">Margem líquida do técnico</small>
-      </div>
+function displayClientVisitPage(v) {
+  const ok = String(v.status).toLowerCase().includes('confirmada');
+  const acoes = ok ? `<div style="margin-top:20px;background:#d1fae5;border:1px solid #10b981;border-radius:10px;padding:16px;text-align:center;"><h3 style="color:#065f46;font-size:16px;">Visita confirmada!</h3><p style="color:#047857;font-size:14px;">Nossa equipe comparecerá no horário agendado.</p></div>`
+    : `<div style="display:grid;gap:10px;">
+      <button class="primary" style="width:100%;padding:14px;background:var(--green);font-size:16px;" onclick="responderVisita('Confirmada','')">SIM, pode coletar no horário previsto</button>
+      <button class="danger-btn" style="width:100%;padding:14px;font-size:15px;" onclick="abrirRecusaVisita()">NÃO poderei receber (informar motivo)</button></div>`;
+  document.getElementById('app').innerHTML = pubShell(`
+    ${pubLogo()}
+    <div style="text-align:center;margin-bottom:18px;">
+      <span class="tag ${escS(v.status).replace(/\s+/g, '_')}" style="font-size:13px;padding:6px 14px;">${escS(v.status)}</span>
+      <h2 style="color:var(--navy);margin-top:10px;">Coleta de Equipamento</h2>
     </div>
-
-    <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-        <h2 style="margin-bottom:0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;margin-right:8px;">🛡️</span> Histórico de Serviços & Garantias</h2>
-        <input class="visit-search" type="text" placeholder="⌕ Buscar cliente, OS, aparelho ou lacre..." value="${historySearchQuery.replace(/"/g, '&quot;')}" oninput="filterHistory(this.value)">
-      </div>
-
-      <div style="overflow-x:auto;">
-        <table class="table-custom">
-          <thead>
-            <tr>
-              <th>OS / Lacre</th>
-              <th>Cliente / Aparelho</th>
-              <th>Data Conclusão</th>
-              <th>Vigência da Garantia</th>
-              <th>Status Garantia</th>
-              <th style="text-align:right;">Valor do Serviço</th>
-              <th style="text-align:right;">Lucro Líquido</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-      </div>
+    <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:20px;">
+      <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${escS(v.cliente_nome)}</p>
+      <p style="margin-bottom:8px;"><strong>Equipamento:</strong> <span style="color:var(--blue);font-weight:700;">${escS(v.aparelho_motivo)}</span></p>
+      <p style="margin-bottom:8px;"><strong>Data:</strong> ${formatarDataBR(v.data_visita)}</p>
+      <p style="margin-bottom:8px;"><strong>Horário:</strong> ${escS(v.horario_visita)}</p>
+      <p><strong>Endereço:</strong> ${escS(v.endereco)}</p>
     </div>
-  `;
+    <h3 style="text-align:center;font-size:16px;color:var(--navy);margin-bottom:12px;">Podemos comparecer para coletar o seu equipamento?</h3>
+    ${acoes}${pubWhats('Olá! Estou vendo o agendamento da minha visita.')}`, 'Confirmação de Visita');
 }
 
-function filterHistory(q) {
-  historySearchQuery = q;
-  localStorage.setItem("wa_history_search", q);
-  renderDashboard();
+function abrirRecusaVisita() {
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.innerHTML = `<div class="modal-box"><h3 style="color:var(--navy);margin-bottom:10px;">Qual o motivo?</h3>
+    <div class="field"><textarea id="motivoRecusa" rows="3" placeholder="Informe o motivo ou sugira outra data/horário"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="secondary" onclick="this.closest('.modal').remove()">Voltar</button>
+    <button class="primary" onclick="const t=document.getElementById('motivoRecusa').value;this.closest('.modal').remove();responderVisita('Reagendar / Não autorizado',t)">Enviar</button></div></div>`;
+  document.body.appendChild(m);
 }
 
-function renderParts() {
-  let partsListHtml = "";
-  if (parts.length === 0) {
-    partsListHtml = '<p style="color:var(--muted); text-align:center;">Nenhuma peça cadastrada ainda.</p>';
-  } else {
-    parts.slice().reverse().forEach(p => {
-      partsListHtml += `
-        <div class="card-item visit-card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:185px;">
-            <strong style="font-size:15px; color:var(--navy);">${p.nome}</strong>
-            <p style="font-size:13px; color:var(--muted); margin:2px 0;">📦 Estoque: <strong>${p.estoque || 0} un.</strong></p>
-            <p style="font-size:14px; color:var(--green); font-weight:700;">Preço Unitário: R$ ${Number(p.preco || 0).toFixed(2)}</p>
-          </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editPart(${p.id})">✏️ Editar</button>
-            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deletePart(${p.id})">🗑️ Excluir</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  return `
-    <div class="layout">
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📦</span> Cadastrar Nova Peça</h2>
-        <form onsubmit="savePart(event)">
-          <div class="field">
-            <label>Descrição / Nome da Peça *</label>
-            <input id="pNome" required placeholder="Ex.: Capacitor 2,5uF">
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>Preço Unitário (R$) *</label>
-              <input id="pPreco" required type="number" step="0.01" placeholder="0.00">
-            </div>
-            <div class="field">
-              <label>Quantidade em Estoque *</label>
-              <input id="pEstoque" required type="number" value="1" min="0">
-            </div>
-          </div>
-          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Salvar Peça no Cadastro</button>
-        </form>
-      </div>
-
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📋</span> Peças Cadastradas (${parts.length})</h2>
-        <div>${partsListHtml}</div>
-      </div>
-    </div>
-  `;
-}
-
-function savePart(e) {
-  e.preventDefault();
-  const nome = document.getElementById("pNome").value.trim();
-  const preco = parseFloat(document.getElementById("pPreco").value) || 0;
-  const estoque = parseInt(document.getElementById("pEstoque").value) || 0;
-
-  parts.push({ id: Date.now(), nome, preco, estoque });
-  localStorage.setItem("wa_parts", JSON.stringify(parts));
-  alert("✅ Peça cadastrada com sucesso!");
-  renderDashboard();
-}
-
-function editPart(id) {
-  const p = parts.find(item => item.id === id);
-  if (!p) return;
-  const novoNome = prompt("Nome da Peça:", p.nome);
-  if (novoNome === null) return;
-  const novoPreco = prompt("Preço Unitário (R$):", p.preco);
-  if (novoPreco === null) return;
-  const novoEstoque = prompt("Quantidade em Estoque:", p.estoque);
-  if (novoEstoque === null) return;
-
-  p.nome = novoNome.trim();
-  p.preco = parseFloat(novoPreco) || 0;
-  p.estoque = parseInt(novoEstoque) || 0;
-  localStorage.setItem("wa_parts", JSON.stringify(parts));
-  alert("✅ Peça atualizada com sucesso!");
-  renderDashboard();
-}
-
-function deletePart(id) {
-  if (!confirm("⚠️ Deseja realmente excluir esta peça?")) return;
-  parts = parts.filter(item => item.id !== id);
-  localStorage.setItem("wa_parts", JSON.stringify(parts));
-  alert("Peça excluída com sucesso!");
-  renderDashboard();
-}
-
-function renderBalance() {
-  const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth();
-
-  const filteredOrders = orders.filter(o => {
-    if (balanceFilterPeriod === "all") return true;
-    const dStr = o.data_conclusao || o.created;
-    if (!dStr) return false;
-    const d = new Date(dStr);
-    if (balanceFilterPeriod === "current_month") {
-      return d.getFullYear() === curYear && d.getMonth() === curMonth;
-    } else if (balanceFilterPeriod === "last_month") {
-      const prevMonthDate = new Date(curYear, curMonth - 1, 1);
-      return d.getFullYear() === prevMonthDate.getFullYear() && d.getMonth() === prevMonthDate.getMonth();
-    }
-    return true;
-  });
-
-  const totalOrders = filteredOrders.length;
-  const completedOrders = filteredOrders.filter(o => o.status === "Concluído" || o.status === "Pronto para retirada" || o.status === "Entregue");
-  const totalFaturamento = filteredOrders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
-  const totalSinais = filteredOrders.reduce((sum, o) => sum + (Number(o.entryFee) || 0), 0);
-  const totalCustoPecas = filteredOrders.reduce((sum, o) => {
-    if (o.partsUsed && Array.isArray(o.partsUsed)) {
-      return sum + o.partsUsed.reduce((s, p) => s + ((Number(p.preco) || 0) * (Number(p.qtd) || 1)), 0);
-    }
-    return sum;
-  }, 0);
-  const lucroLiquido = totalFaturamento - totalCustoPecas;
-
-  let statusRows = '';
-  const statuses = ["Em análise técnica", "Aguardando aprovação", "Em conserto", "Pronto para retirada", "Concluído", "Não aprovado"];
-  statuses.forEach(st => {
-    const count = filteredOrders.filter(o => o.status === st).length;
-    const pct = totalOrders > 0 ? ((count / totalOrders) * 100).toFixed(1) : "0.0";
-    statusRows += `<tr><td>${st}</td><td>${count}</td><td>${pct}%</td></tr>`;
-  });
-
-  return `
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-      <h2 style="color:var(--navy); font-size:20px;">📊 Balanço Financeiro da WA Resolve</h2>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <label style="font-size:13px; font-weight:700; color:#42536b;">Filtrar Período:</label>
-        <select onchange="changeBalancePeriod(this.value)" style="border:1px solid #d7e0eb; border-radius:8px; padding:6px 12px; font-size:14px; background:#fff;">
-          <option value="all" ${balanceFilterPeriod==='all'?'selected':''}>Todo o Período</option>
-          <option value="current_month" ${balanceFilterPeriod==='current_month'?'selected':''}>Mês Atual</option>
-          <option value="last_month" ${balanceFilterPeriod==='last_month'?'selected':''}>Mês Anterior</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="stats">
-      <div class="stat"><span>Ordens no Período</span><strong>${totalOrders}</strong><small style="color:var(--muted);">${completedOrders.length} concluídas</small></div>
-      <div class="stat" style="border-left-color: var(--green);"><span>Faturamento Bruto</span><strong style="color:var(--green);">${formatBRL(totalFaturamento)}</strong><small style="color:var(--muted);">Sinais recebidos: ${formatBRL(totalSinais)}</small></div>
-      <div class="stat" style="border-left-color: var(--red);"><span>Custo Peças (Estoque)</span><strong style="color:var(--red);">${formatBRL(totalCustoPecas)}</strong><small style="color:var(--muted);">Gasto em componentes</small></div>
-      <div class="stat" style="border-left-color: #10b981;"><span>Lucro Líquido Real</span><strong style="color:#10b981;">${formatBRL(lucroLiquido)}</strong><small style="color:var(--muted);">Margem após peças</small></div>
-    </div>
-
-    <div class="panel">
-      <div class="two" style="margin-top:10px;">
-        <div>
-          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">📋 Distribuição de Serviços</h3>
-          <table class="table-custom">
-            <thead>
-              <tr><th>Status</th><th>Qtd de OS</th><th>% do Total</th></tr>
-            </thead>
-            <tbody>
-              ${statusRows}
-            </tbody>
-          </table>
-        </div>
-        
-        <div>
-          <h3 style="font-size:15px; color:var(--navy); margin-bottom:10px;">💰 Demonstrativo Financeiro</h3>
-          <table class="table-custom">
-            <thead>
-              <tr><th>Componente</th><th>Valor</th><th>% Faturamento</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Faturamento Total Bruto</td><td>${formatBRL(totalFaturamento)}</td><td>100,0%</td></tr>
-              <tr><td>Custo Total de Peças</td><td>${formatBRL(totalCustoPecas)}</td><td>${totalFaturamento > 0 ? ((totalCustoPecas/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
-              <tr><td><strong>Lucro Líquido do Técnico</strong></td><td><strong style="color:var(--green);">${formatBRL(lucroLiquido)}</strong></td><td>${totalFaturamento > 0 ? ((lucroLiquido/totalFaturamento)*100).toFixed(1) : '0.0'}%</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function changeBalancePeriod(period) {
-  balanceFilterPeriod = period;
-  localStorage.setItem("wa_balance_period", period);
-  renderDashboard();
-}
-
-function renderClients() {
-  let clientsListHtml = "";
-  if (clients.length === 0) {
-    clientsListHtml = '<p style="color:var(--muted); text-align:center;">Nenhum cliente cadastrado ainda.</p>';
-  } else {
-    clients.slice().reverse().forEach(c => {
-      const clientOrdersCount = orders.filter(o => o.name && c.nome && o.name.toLowerCase() === c.nome.toLowerCase()).length;
-
-      clientsListHtml += `
-        <div class="card-item visit-card" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:185px;">
-            <strong style="font-size:15px; color:var(--navy);">${c.nome}</strong>
-            <p style="font-size:13px; color:var(--muted); margin:2px 0;">📱 ${c.telefone || 'Sem telefone'} · <span style="color:var(--blue); font-weight:700;">${clientOrdersCount} serviço(s) na WA</span></p>
-            <p style="font-size:13px; color:#334155;">📍 ${c.endereco || 'Endereço não informado'}</p>
-          </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="viewClientHistory('${encodeURIComponent(c.nome)}')">📋 Histórico</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="directVisit('${encodeURIComponent(c.nome)}', '${encodeURIComponent(c.telefone||'')}', '${encodeURIComponent(c.endereco||'')}')">📅 Agendar</button>
-            <button class="whatsapp-btn" style="font-size:12px; padding:6px 10px;" onclick="openWaDirect('${c.telefone}', 'Olá ${encodeURIComponent(c.nome)}! Falamos da assistência técnica WA Resolve.')">💬 WhatsApp</button>
-            <button class="secondary" style="font-size:12px; padding:6px 10px;" onclick="editClient('${c.id}')">✏️ Editar</button>
-            <button class="danger-btn" style="font-size:12px; padding:6px 10px;" onclick="deleteClient('${c.id}', '${encodeURIComponent(c.nome)}')">🗑️ Excluir</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  return `
-    <div class="layout">
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">👤</span> Novo Cliente</h2>
-        <form onsubmit="saveClient(event)">
-          <div class="field">
-            <label>Nome Completo *</label>
-            <input id="cNome" required placeholder="Ex.: Francisca Silva">
-          </div>
-          <div class="field">
-            <label>Telefone / WhatsApp com DDD *</label>
-            <input id="cTelefone" required placeholder="Ex.: 84988887777" inputmode="tel">
-          </div>
-          <div class="field">
-            <label>Endereço Completo (Rua, Número, Bairro)</label>
-            <textarea id="cEndereco" rows="3" placeholder="Ex.: Rua das Flores, 150, Bairro Abolição"></textarea>
-          </div>
-          <button type="submit" class="primary" style="width:100%; margin-top:8px;">Salvar Cliente</button>
-        </form>
-      </div>
-
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">👥</span> Meus Clientes (${clients.length})</h2>
-        <div>
-          ${clientsListHtml}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function viewClientHistory(clientNameEncoded) {
-  const nome = decodeURIComponent(clientNameEncoded);
-  const clientOrders = orders.filter(o => o.name && o.name.toLowerCase() === nome.toLowerCase());
-
-  let listHtml = '';
-  if (clientOrders.length === 0) {
-    listHtml = '<p style="color:var(--muted); text-align:center; padding:20px;">Nenhuma ordem registrada para este cliente.</p>';
-  } else {
-    clientOrders.forEach(o => {
-      listHtml += `
-        <div style="border-bottom:1px solid #e2e8f0; padding:10px 0;">
-          <div style="display:flex; justify-content:space-between;">
-            <strong>${o.id} - ${o.appliance} (${o.brand || ''})</strong>
-            <span class="tag ${String(o.status).replace(/\s+/g, '_')}">${o.status}</span>
-          </div>
-          <p style="font-size:12px; color:#475569; margin:4px 0;">Defeito: ${o.problem || 'Não informado'} | Valor: ${formatBRL(o.price)}</p>
-          <small style="color:var(--muted);">Garantia: ${o.dias_garantia || 90} dias (Conclusão: ${formatarDataBR(o.data_conclusao)})</small>
-        </div>
-      `;
-    });
-  }
-
-  const modal = document.createElement("div");
-  modal.className = "modal";
-  modal.innerHTML = `
-    <div class="modal-box">
-      <h3 style="color:var(--navy); margin-bottom:8px;">📋 Histórico Completo: ${nome}</h3>
-      <div style="max-height:360px; overflow-y:auto;">
-        ${listHtml}
-      </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-        <button class="primary" onclick="this.closest('.modal').remove()">Fechar</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function renderVisits() {
-  const filteredVisits = visits.filter(v => {
-    if (!visitSearchQuery) return true;
-    const q = visitSearchQuery.toLowerCase();
-    return (v.cliente_nome && v.cliente_nome.toLowerCase().includes(q)) || 
-           (v.endereco && v.endereco.toLowerCase().includes(q)) ||
-           (v.aparelho_motivo && v.aparelho_motivo.toLowerCase().includes(q));
-  });
-
-  let visitsListHtml = "";
-  if (filteredVisits.length === 0) {
-    visitsListHtml = '<div class="visit-empty">📅<br><strong>Nenhuma visita encontrada</strong><br><small>Agende uma visita ou tente outra busca.</small></div>';
-  } else {
-    filteredVisits.slice().reverse().forEach(v => {
-      const initials = String(v.cliente_nome || "C").trim().charAt(0).toUpperCase();
-      visitsListHtml += `
-        <div class="card-item visit-card">
-          <div class="visit-card-top">
-            <div class="visit-person">
-              <div class="visit-avatar">${initials}</div>
-              <div class="visit-name">${v.cliente_nome || "Cliente"}</div>
-            </div>
-            <span class="tag ${String(v.status || 'Agendada').replace(/\s+/g, '_')}">${v.status || 'Agendada'}</span>
-          </div>
-          <div class="visit-meta">
-            <span>▦ &nbsp;${formatarDataBR(v.data_visita)}</span>
-            <span class="separator">|</span>
-            <span>◷ &nbsp;${v.horario_visita || "Horário a combinar"}</span>
-          </div>
-          <div class="visit-detail"><span>●</span><span><strong>Equipamento:</strong> ${v.aparelho_motivo || "Não informado"}</span></div>
-          <div class="visit-detail"><span>●</span><span>${v.endereco || "Endereço não informado"}</span></div>
-          ${v.observacoes ? `<p style="font-size:12px;color:#64748b;margin-top:8px;"><em>Observações: ${v.observacoes}</em></p>` : ''}
-          ${v.motivo_recusa ? `<p style="font-size:12px;color:var(--red);margin-top:8px;font-weight:700;">⚠ Motivo da recusa: ${v.motivo_recusa}</p>` : ''}
-          <div class="visit-actions">
-            <button class="whatsapp-btn" onclick="sendVisitConfirmationToWhatsApp('${v.telefone || ''}', '${encodeURIComponent(v.cliente_nome || '')}', '${v.data_visita || ''}', '${encodeURIComponent(v.horario_visita || '')}', '${encodeURIComponent(v.aparelho_motivo || '')}', '${v.id}')">📲 Enviar Coleta no WhatsApp</button>
-            <button class="secondary" onclick="openMaps('${encodeURIComponent(v.endereco || '')}')">🗺️ Rota no Maps</button>
-            <button class="secondary" onclick="changeVisitStatus('${v.id}')">🔄 Status</button>
-            <button class="danger-btn" onclick="deleteVisit('${v.id}')">🗑️ Excluir</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  let clientVisitOptions = clients.map(c => `<option value="${c.nome}">${c.telefone ? '📱 ' + c.telefone : ''} ${c.endereco ? '· ' + c.endereco : ''}</option>`).join('');
-
-  return `
-    <div class="layout visits-layout">
-      <div class="panel">
-        <h2><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;">📅</span> Agendar Visita Técnica</h2>
-        <form onsubmit="saveVisit(event)">
-          <div class="field">
-            <label>Nome do Cliente * <span style="font-weight:500;color:#77869a;">(Clique ou comece a digitar)</span></label>
-            <input id="vNome" required placeholder="Clique ou comece a digitar o cliente..." list="visitClientsDatalist" autocomplete="off" oninput="handleVisitClientSelect(this.value)" onchange="handleVisitClientSelect(this.value)">
-            <datalist id="visitClientsDatalist">${clientVisitOptions}</datalist>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>WhatsApp do Cliente</label>
-              <input id="vTelefone" placeholder="84988887777" inputmode="tel">
-            </div>
-            <div class="field">
-              <label>Data da Visita *</label>
-              <input type="date" id="vData" required value="${new Date().toISOString().split('T')[0]}">
-            </div>
-          </div>
-          <div class="two">
-            <div class="field">
-              <label>Horário / Período *</label>
-              <select id="vHorario">
-                <option>08:00 às 10:00 (Manhã)</option>
-                <option>10:00 às 12:00 (Manhã)</option>
-                <option>13:30 às 15:30 (Tarde)</option>
-                <option>15:30 às 17:30 (Tarde)</option>
-                <option>Horário a combinar</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Aparelho / Equipamento a Coletar *</label>
-              <input id="vAparelho" required placeholder="Ex.: Geladeira Frost Free">
-            </div>
-          </div>
-          <div class="field">
-            <label>Endereço Completo da Visita *</label>
-            <input id="vEndereco" required placeholder="Rua, número, bairro e referências">
-          </div>
-          <div class="field">
-            <label>Observações</label>
-            <textarea id="vObs" rows="2" placeholder="Detalhes de acesso, campainha, etc."></textarea>
-          </div>
-          <button type="submit" class="primary" style="width:100%;margin-top:4px;padding:12px;">▦ &nbsp;Confirmar Agendamento &nbsp; →</button>
-        </form>
-      </div>
-
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-          <h2 style="margin-bottom:0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#1672d3;color:#fff;font-size:20px;margin-right:8px;">📅</span> Visitas Agendadas (${visits.length})</h2>
-          <input class="visit-search" type="text" placeholder="⌕  Buscar por cliente, endereço..." value="${visitSearchQuery.replace(/"/g, '&quot;')}" oninput="filterVisits(this.value)">
-        </div>
-        <div>${visitsListHtml}</div>
-      </div>
-    </div>
-  `;
-}
-
-function filterVisits(q) {
-  visitSearchQuery = q;
-  localStorage.setItem("wa_visit_search", q);
-  renderDashboard();
-}
-
-function handleVisitClientSelect(valorDigitado) {
-  if (!valorDigitado) return;
-  const termo = valorDigitado.trim().toLowerCase();
-  const c = clients.find(item => item.nome && item.nome.trim().toLowerCase() === termo);
-  if (c) {
-    if (c.telefone) document.getElementById("vTelefone").value = c.telefone;
-    if (c.endereco) document.getElementById("vEndereco").value = c.endereco;
-  }
-}
-
-function autoFillOrderClient(valorDigitado) {
-  if (!valorDigitado) return;
-  const termo = valorDigitado.trim().toLowerCase();
-  const c = clients.find(item => item.nome && item.nome.trim().toLowerCase() === termo);
-  if (c && c.telefone) {
-    document.getElementById("osPhone").value = c.telefone;
-  }
-}
-
-function directVisit(nome, tel, end) {
-  setTab("visits");
-  setTimeout(() => {
-    const vNome = document.getElementById("vNome");
-    const vTel = document.getElementById("vTelefone");
-    const vEnd = document.getElementById("vEndereco");
-    const vApa = document.getElementById("vAparelho");
-    if (vNome) vNome.value = decodeURIComponent(nome);
-    if (vTel) vTel.value = decodeURIComponent(tel);
-    if (vEnd) vEnd.value = decodeURIComponent(end);
-    if (vApa) vApa.focus();
-  }, 50);
-}
-
-function openWaDirect(phone, msg) {
-  const clean = (phone || "").replace(/\D/g, "");
-  if (!clean) return alert("Telefone não informado.");
-  const full = clean.startsWith("55") ? clean : "55" + clean;
-  window.open(`https://wa.me/${full}?text=${msg}`, "_blank");
-}
-
-function changeVisitStatus(id) {
-  const v = visits.find(item => String(item.id) === String(id));
-  if (!v) return;
-  const novo = prompt("Novo status da visita:\n1 - Agendada\n2 - Confirmada\n3 - Realizada\n4 - Reagendar / Não autorizado\n5 - Cancelada", v.status);
-  if (!novo) return;
-  if (novo === "1") v.status = "Agendada";
-  else if (novo === "2") v.status = "Confirmada";
-  else if (novo === "3") v.status = "Realizada";
-  else if (novo === "4") v.status = "Reagendar / Não autorizado";
-  else if (novo === "5") v.status = "Cancelada";
-  else v.status = novo;
-
-  localStorage.setItem("wa_visits", JSON.stringify(visits));
-  if (supabaseClient && v.dbId) {
-    supabaseClient.from("visitas").update({ status: v.status }).eq("id", v.dbId);
-  }
-  renderDashboard();
-}
-
-async function deleteVisit(id) {
-  if (!confirm(`⚠️ Deseja realmente excluir esta visita agendada?`)) return;
-  const v = visits.find(item => String(item.id) === String(id));
-  visits = visits.filter(item => String(item.id) !== String(id));
-  localStorage.setItem("wa_visits", JSON.stringify(visits));
-  if (supabaseClient && v && v.dbId) {
-    try {
-      await supabaseClient.from("visitas").delete().eq("id", v.dbId);
-    } catch(err) {
-      console.warn("Erro ao excluir visita na nuvem:", err);
-    }
-  }
-  renderDashboard();
-}
-
-function getPublicSiteBaseUrl() {
-  const configured = (localStorage.getItem("wa_public_url") || "").trim();
-  const candidate = configured || (window.location.origin + window.location.pathname);
-
-  try {
-    const parsed = new URL(candidate, window.location.href);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error("Endereço público inválido.");
-    }
-    parsed.search = "";
-    parsed.hash = "";
-    return parsed.href.replace(/\/$/, "") + "/";
-  } catch (error) {
-    console.error("URL pública inválida:", error);
-    return window.location.origin + window.location.pathname.replace(/[^/]*$/, "");
-  }
-}
-
-function getOrderDatabaseId(orderId) {
-  const order = orders.find(item => String(item.id) === String(orderId));
-  if (!order || order.localOnly || !order.dbId) return null;
-  const rawId = String(order.dbId);
-  return /^\d+$/.test(rawId) && Number(rawId) > 0 ? rawId : null;
-}
-
-// ==========================================
-// MENSAGEM DO WHATSAPP CORRIGIDA E LIMPA
-// ==========================================
-function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
-  const cleanPhone = (clientPhone || "").replace(/\D/g, "");
-  if (!cleanPhone) {
-    alert("Esta ordem não possui o WhatsApp do cliente cadastrado.");
-    return;
-  }
-
-  const dbId = getOrderDatabaseId(orderId);
-  const order = orders.find(item => String(item.id) === String(orderId));
-  if (!dbId || (order && order.localOnly)) {
-    alert("Esta ordem foi salva apenas localmente. Para enviar um link público de aprovação ao cliente, salve a ordem com a conexão ativa no Supabase.");
-    return;
-  }
-
-  const decodeSafe = value => {
-    try { return decodeURIComponent(value || ""); } catch (_) { return value || ""; }
-  };
-  const nomeCliente = decodeSafe(clientName);
-  const nomeAparelho = decodeSafe(appliance);
-  const detalhesTxt = decodeSafe(details || "");
-  const urlOs = getPublicSiteBaseUrl() + "#cliente=" + encodeURIComponent(dbId);
-
-  const texto =
-`Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (*${orderId}*) referente ao conserto do seu(sua) *${nomeAparelho}* na *WA Resolve*:
-
-💰 *Valor:* R$ ${Number(price).toFixed(2)}
-${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ""}
-👉 *Clique no link abaixo para ver a foto do defeito apurado na bancada, detalhes e aprovar online:*
-${urlOs}`;
-
-  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
-  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
-  window.open(url, "_blank", "noopener");
-}
-
-function sendVisitConfirmationToWhatsApp(phone, clientName, dataIso, horario, aparelho, visitId) {
-  const cleanPhone = (phone || "").replace(/\D/g, "");
-  if (!cleanPhone) {
-    alert("Esta visita não possui o WhatsApp do cliente cadastrado.");
-    return;
-  }
-  
-  const nomeCliente = decodeURIComponent(clientName);
-  const horarioTxt = decodeURIComponent(horario);
-  const dataFormatada = formatarDataBR(dataIso);
-
-  const urlVisita = getPublicSiteBaseUrl() + "#visita=" + encodeURIComponent(String(visitId).replace(/\D/g, ""));
-
-  const texto = 
-`Olá, *${nomeCliente}*! Confirmando a visita técnica da WA Resolve no dia ${dataFormatada} no horário ${horarioTxt}.
-
-👉 *Clique para responder SIM ou NÃO online:*
-${urlVisita}`;
-
-  const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
-  const url = `https://wa.me/${fullPhone}?text=${encodeURIComponent(texto)}`;
-  window.open(url, "_blank");
-}
-
-function renderClientView(id) {
-  const app = document.getElementById("app");
-  app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2><p style="color:var(--muted);">Aguarde um instante.</p></div>';
-
-  const cleanId = String(id || "").replace(/\D/g, "");
-  if (!supabaseClient || !cleanId) {
-    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Ordem indisponível</h2><p style="color:var(--muted);">Entre em contato com a WA Resolve.</p></div>';
-    return;
-  }
-
-  supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
-    if (error || !data) {
-      console.error("Falha ao consultar orçamento público:", error);
-      app.innerHTML = '<div style="max-width:520px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Orçamento não localizado</h2></div>';
-      return;
-    }
-
-    const o = {
-      id: "WR-" + data.id,
-      dbId: data.id,
-      name: data.clientes ? data.clientes.nome : "Cliente",
-      phone: data.clientes ? data.clientes.telefone : "",
-      appliance: data.titulo_servico || "Aparelho",
-      brand: data.marca || "",
-      serialNumber: data.numero_serie || "",
-      sealNumber: data.numero_lacre || "",
-      checklistDamages: data.avarias_iniciais || "",
-      accessoriesLeft: data.acessorios_deixados || "",
-      problem: data.defeito || data.descricao || "",
-      diagnosis: data.diagnostico || "",
-      price: Number(data.orcamento) || 0,
-      refusalFee: Number(data.taxa_recusa) || 0,
-      entryFee: Number(data.valor_entrada) || 0,
-      paymentMethod: data.forma_pagamento || "Pix",
-      photoUrlEntry: data.foto_entrada || data.foto_url || "",
-      photoUrlDefect: data.foto_defeito || "",
-      status: data.status || (Number(data.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
-      partsUsed: data.pecas_usadas || []
-    };
-    displayClientOrderPage(o);
-  }).catch(error => {
-    console.error("Erro inesperado ao carregar orçamento:", error);
-    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Erro ao carregar orçamento</h2></div>';
-  });
-}
-
-function displayClientOrderPage(o) {
-  const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
-  const contactCompanyBtn = companyPhoneClean 
-    ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id} da WA Resolve.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>`
-    : '';
-
-  const fotoExibicao = o.photoUrlDefect || o.photoUrlEntry;
-  const photoHtml = fotoExibicao ? `
-    <div style="margin:16px 0; text-align:center; background:#f8fafc; border-radius:12px; padding:12px; border:1px solid var(--line);">
-      <p style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px;">
-        ${o.photoUrlDefect ? '🔬 Foto do Defeito Constatado em Bancada' : '📷 Foto do Equipamento no Recebimento'}
-      </p>
-      <img src="${fotoExibicao}" alt="Aparelho do Cliente" style="max-width:100%; max-height:320px; border-radius:8px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-      ${o.photoUrlEntry && o.photoUrlDefect ? `<div style="margin-top:6px;"><a href="${o.photoUrlEntry}" target="_blank" style="font-size:11px; color:var(--blue); font-weight:600;">Ver também foto de entrada no balcão</a></div>` : ''}
-    </div>` : '';
-
-  const logoHeader = companyLogoUrl ? `
-    <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
-    </div>` : '';
-
-  const preco = Number(o.price || 0);
-  const entrada = Number(o.entryFee || 0);
-  const restante = Math.max(0, preco - entrada);
-  const valorPixAutomatico = restante > 0 ? restante : preco;
-
-  let pixBlockHtml = '';
-  let pixPayloadClient = '';
-  if (companyPixKey && valorPixAutomatico > 0) {
-    const txid = "OS" + String(o.id).replace(/\D/g, "").slice(0, 20);
-    pixPayloadClient = gerarPixPayload(companyPixKey, valorPixAutomatico, "WA RESOLVE", "MOSSORO", txid);
-
-    pixBlockHtml = `
-      <div style="margin-top:16px; background:#f0fdf4; border:1px dashed #16a34a; border-radius:12px; padding:16px; text-align:center;">
-        <p style="font-size:14px; font-weight:700; color:#166534; margin-bottom:4px;">💳 Pagar via PIX com Valor Preenchido</p>
-        <p style="font-size:12px; color:#15803d; margin-bottom:10px;">Valor automático: <strong>${formatBRL(valorPixAutomatico)}</strong></p>
-        
-        <div id="clientPixQrContainer" style="display:flex; justify-content:center; margin:0 auto 12px; background:#fff; padding:10px; border-radius:10px; border:1px solid #bbf7d0; width:190px; height:190px;"></div>
-
-        <button class="primary" style="font-size:13px; padding:10px 18px; background:#16a34a; width:100%;" onclick="copyPixDirect('${pixPayloadClient}')">📋 Copiar Código PIX (Copia e Cola)</button>
-      </div>
-    `;
-  }
-
-  const isApproved = String(o.status).toLowerCase().includes("aprovado");
-  let actionsHtml = '';
-  if (o.status === "Em análise técnica" || preco === 0) {
-    actionsHtml = `
-      <div style="margin-top:20px; background:#fef9c3; border:1px solid #fde047; border-radius:10px; padding:16px; text-align:center;">
-        <h3 style="color:#854d0e; font-size:16px; margin-bottom:4px;">🔍 Equipamento em Análise Técnica</h3>
-        <p style="color:#a16207; font-size:14px;">Seu aparelho foi recebido e está em testes em bancada. O orçamento detalhado e a foto do defeito serão atualizados neste link assim que a análise for finalizada.</p>
-      </div>
-      ${contactCompanyBtn}
-    `;
-  } else if (isApproved) {
-    actionsHtml = `
-      <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
-        <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Orçamento Aprovado - Conserto Iniciado!</h3>
-        <p style="color:#047857; font-size:14px;">O conserto do seu equipamento já foi iniciado pela nossa equipe técnica.</p>
-      </div>
-      ${pixBlockHtml}
-      ${contactCompanyBtn}
-    `;
-  } else {
-    actionsHtml = `
-      <div style="margin-top:20px; display:grid; gap:10px;">
-        <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId || 0})">✅ Aprovar Orçamento</button>
-        <button class="danger-btn" style="width:100%; padding:12px; font-size:15px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId || 0})">❌ Não Aprovar (Recusar)</button>
-        ${pixBlockHtml}
-        ${contactCompanyBtn}
-      </div>
-    `;
-  }
-
-  document.getElementById("app").innerHTML = `
-    <header class="top">
-      <div class="brand">
-        <div class="brand-badge">WA RESOLVE</div>
-        <span>Acompanhamento de Orçamento</span>
-      </div>
-    </header>
-    <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:14px; padding:22px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-      ${logoHeader}
-      <div style="text-align:center; margin-bottom:18px;">
-        <span class="tag ${String(o.status).replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">Status: ${o.status}</span>
-        <h2 style="color:var(--navy); margin-top:10px;">${o.appliance}</h2>
-        <p style="color:var(--muted);">${o.brand ? o.brand + ' · ' : ''}Ordem ${o.id}</p>
-        ${o.sealNumber ? `<p style="color:var(--blue); font-size:12px; font-weight:700; margin-top:4px;">🛡️ Selo de Garantia: ${o.sealNumber}</p>` : ''}
-      </div>
-      
-      ${photoHtml}
-
-      <div style="border-top:1px solid var(--line); padding-top:16px;">
-        ${o.partsUsed && o.partsUsed.length > 0 ? `
-          <div style="margin-bottom:14px; background:#f8fafc; border-radius:10px; padding:12px; border:1px solid var(--line);">
-            <p style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:6px;">🛠️ Peças / Componentes Necessários:</p>
-            <ul style="margin-left:18px; font-size:13px; color:#334155;">
-              ${o.partsUsed.map(pu => `<li>${pu.nome}</li>`).join('')}
-            </ul>
-          </div>
-        ` : ''}
-        <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${o.name}</p>
-        <p style="margin-bottom:8px;"><strong>Defeito Relatado:</strong> ${o.problem || 'Não especificado'}</p>
-        <p style="margin-bottom:8px;"><strong>Diagnóstico Técnico:</strong> ${o.diagnosis || 'Em avaliação de bancada'}</p>
-        <p style="margin-bottom:8px; font-size:18px;"><strong>Valor Total do Orçamento:</strong> <span style="color:var(--green); font-weight:800;">${preco > 0 ? formatBRL(preco) : 'A definir após análise técnica'}</span></p>
-        ${o.entryFee > 0 ? `<p style="margin-bottom:8px; font-size:14px; color:#166534;"><strong>Sinal Pago:</strong> ${formatBRL(o.entryFee)} | <strong>Saldo Restante na Entrega:</strong> ${preco > 0 ? formatBRL(preco - o.entryFee) : 'A calcular'}</p>` : ''}
-        ${o.refusalFee > 0 ? `<p style="font-size:12px; color:var(--red);">* Taxa de análise/deslocamento caso o orçamento não seja aprovado: R$ ${Number(o.refusalFee).toFixed(2)}</p>` : ''}
-      </div>
-
-      ${actionsHtml}
-    </div>
-  `;
-
-  if (pixPayloadClient) {
-    setTimeout(() => {
-      const qrEl = document.getElementById("clientPixQrContainer");
-      if (qrEl) {
-        new QRCode(qrEl, {
-          text: pixPayloadClient,
-          width: 170,
-          height: 170,
-          colorDark: "#102b50",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }
-    }, 60);
-  }
+async function responderVisita(status, motivo) {
+  const { data, error } = await supabaseClient.rpc('responder_visita', { p_token: _tok, p_status: status, p_motivo: motivo || '' });
+  if (error || !data) return toast('Não foi possível registrar sua resposta. Tente novamente.');
+  toast(status === 'Confirmada' ? 'Visita confirmada. Obrigado!' : 'Aviso enviado. Entraremos em contato.');
+  renderClientVisitView(_tok);
 }
 
 function copyPixDirect(key) {
   if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(key).then(() => {
-      alert("✅ Código PIX copiado com sucesso! Abra o app do seu banco e escolha 'PIX Copia e Cola'.");
-    }).catch(() => {
-      prompt("Copie o código PIX abaixo:", key);
-    });
-  } else {
-    prompt("Copie o código PIX abaixo:", key);
-  }
+    navigator.clipboard.writeText(key).then(() => toast('Código PIX copiado! Abra o app do banco e use "PIX Copia e Cola".'))
+      .catch(() => prompt('Copie o código PIX:', key));
+  } else prompt('Copie o código PIX:', key);
 }
 
-async function clientActionOrder(id, newStatus, dbId) {
-  const o = orders.find(item => item.id === id);
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem("wa_orders", JSON.stringify(orders));
+/* ---------- 8. Funções que faltavam (só são criadas se não existirem no seu site) ---------- */
+window.openKeyModal = window.openKeyModal || function () {
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.innerHTML = `<div class="modal-box"><h3 style="color:var(--navy);margin-bottom:12px;">Configurações da Empresa</h3>
+    <div class="field"><label>WhatsApp da empresa (com DDD)</label><input id="cfgFone" inputmode="tel" value="${escS(companyWhatsApp)}"></div>
+    <div class="field"><label>Chave PIX</label><input id="cfgPix" value="${escS(companyPixKey)}"></div>
+    <div class="field"><label>Endereço / Cidade</label><input id="cfgEnd" value="${escS(companyAddress)}"></div>
+    <div class="field"><label>Logo (opcional)</label><input type="file" id="cfgLogoFile" accept="image/*"><input type="hidden" id="cfgLogo" value="${escS(companyLogoUrl)}"></div>
+    <div class="field"><label>Endereço público do site (opcional, ex.: https://seusite.com/)</label><input id="cfgUrl" value="${escS(localStorage.getItem('wa_public_url') || '')}"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+      <button class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
+      <button class="primary" onclick="salvarConfig(this)">Salvar</button></div></div>`;
+  document.body.appendChild(m);
+  document.getElementById('cfgLogoFile').onchange = async e => {
+    if (e.target.files[0]) document.getElementById('cfgLogo').value = await compressAndResizeImage(e.target.files[0], 400, 0.8);
+  };
+};
+window.salvarConfig = function (btn) {
+  companyWhatsApp = document.getElementById('cfgFone').value.replace(/\D/g, '');
+  companyPixKey = document.getElementById('cfgPix').value.trim();
+  companyAddress = document.getElementById('cfgEnd').value.trim();
+  companyLogoUrl = document.getElementById('cfgLogo').value;
+  localStorage.setItem('wa_company_phone', companyWhatsApp);
+  localStorage.setItem('wa_company_pix', companyPixKey);
+  localStorage.setItem('wa_company_address', companyAddress);
+  try { localStorage.setItem('wa_company_logo', companyLogoUrl); } catch (e) {}
+  localStorage.setItem('wa_public_url', document.getElementById('cfgUrl').value.trim());
+  btn.closest('.modal').remove();
+  renderDashboard(); toast('Configurações salvas.');
+};
+
+window.changePin = window.changePin || async function () {
+  const nova = prompt('Digite a nova senha de acesso (mínimo 6 caracteres):');
+  if (!nova) return;
+  if (nova.length < 6) return toast('A senha precisa ter pelo menos 6 caracteres.');
+  const { error } = await supabaseClient.auth.updateUser({ password: nova });
+  toast(error ? 'Não foi possível trocar a senha.' : 'Senha alterada com sucesso.');
+};
+
+window.copyLink = window.copyLink || function (id) {
+  const t = getOrderDatabaseId(id);
+  if (!t) return toast('Link ainda não disponível. Tente de novo em 2 segundos.');
+  const url = getPublicSiteBaseUrl() + '#cliente=' + t;
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(() => toast('Link copiado!'));
+  else prompt('Copie o link:', url);
+};
+
+window.sendOrderToClient = window.sendOrderToClient || function (phone, orderId, nome, aparelho, price, foto, detalhes) {
+  const clean = (phone || '').replace(/\D/g, '');
+  if (!clean) return toast('Esta ordem não possui WhatsApp do cliente.');
+  const t = getOrderDatabaseId(orderId);
+  if (!t) return toast('Link ainda não disponível. Tente de novo em 2 segundos.');
+  const dec = v => { try { return decodeURIComponent(v || ''); } catch (_) { return v || ''; } };
+  const det = dec(detalhes);
+  const texto = `Olá, *${dec(nome)}*! Segue o link da sua Ordem (${orderId}) do(a) *${dec(aparelho)}* na WA Resolve:\n\n💰 *Valor:* ${formatBRL(price)}\n${det ? `🛠️ *Serviço:* ${det}\n` : ''}\n👉 *Veja a foto, os detalhes e aprove online:*\n${getPublicSiteBaseUrl()}#cliente=${t}`;
+  window.open(`https://wa.me/${clean.startsWith('55') ? clean : '55' + clean}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+};
+
+window.changeOrderStatus = window.changeOrderStatus || async function (id) {
+  const o = orders.find(i => String(i.id) === String(id));
+  if (!o) return;
+  const lista = ['Em análise técnica', 'Aguardando aprovação', 'Aprovado - Conserto iniciado', 'Em conserto', 'Pronto para retirada', 'Concluído', 'Entregue', 'Não aprovado'];
+  const n = prompt('Novo status da ordem:\n' + lista.map((s, i) => (i + 1) + ' - ' + s).join('\n'), '');
+  const novo = lista[parseInt(n, 10) - 1];
+  if (!novo) return;
+  o.status = novo;
+  const upd = { status: novo };
+  if (['Pronto para retirada', 'Concluído', 'Entregue'].includes(novo) && !o.data_conclusao) {
+    o.data_conclusao = new Date().toISOString().split('T')[0];
+    upd.data_conclusao = o.data_conclusao;
   }
-  
-  const realDbId = dbId || (o ? o.dbId : id.replace(/\D/g, ""));
-  if (supabaseClient && realDbId && realDbId > 0) {
-    try {
-      await supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", realDbId);
-    } catch(err) {
-      console.warn("Erro ao atualizar status na nuvem:", err);
+  localStorage.setItem('wa_orders', JSON.stringify(orders));
+  if (supabaseClient && o.dbId) {
+    const { error } = await supabaseClient.from('ordens_servico').update(upd).eq('id', o.dbId);
+    if (error) toast('Salvo só neste aparelho: ' + error.message);
+  }
+  renderDashboard(); toast('Status atualizado.');
+};
+
+window.deleteOrder = window.deleteOrder || async function (id) {
+  if (!confirm('Deseja realmente excluir esta ordem?')) return;
+  const o = orders.find(i => String(i.id) === String(id));
+  orders = orders.filter(i => String(i.id) !== String(id));
+  localStorage.setItem('wa_orders', JSON.stringify(orders));
+  if (supabaseClient && o && o.dbId) await supabaseClient.from('ordens_servico').delete().eq('id', o.dbId);
+  renderDashboard(); toast('Ordem excluída.');
+};
+
+/* ---------- 9. Cadastros e telas que faltavam no seu arquivo ---------- */
+const _v = id => (document.getElementById(id) || {}).value || '';
+const _n = id => parseFloat(_v(id)) || 0;
+const persistOrders = () => { try { localStorage.setItem('wa_orders', JSON.stringify(orders)); } catch (e) { console.warn(e); } };
+async function dbInsert(table, full, core) {
+  if (!supabaseClient) return { data: null, error: { message: 'sem conexão com a nuvem' } };
+  let r = await supabaseClient.from(table).insert(full).select().single();
+  if (r.error && core) {
+    console.warn('Insert completo falhou:', r.error.message);
+    r = await supabaseClient.from(table).insert(core).select().single();
+    if (!r.error) toast('Salvo com campos básicos (' + table + ' não tem todas as colunas).');
+  }
+  return r;
+}
+async function ensureClient(nome, tel, end) {
+  const k = nome.trim().toLowerCase();
+  let c = clients.find(x => x.nome && x.nome.trim().toLowerCase() === k);
+  if (c) return c;
+  const r = await dbInsert('clientes', { nome: nome.trim(), telefone: tel, endereco: end || '' }, { nome: nome.trim(), telefone: tel });
+  c = r.data ? { ...r.data, endereco: end || '' } : { id: Date.now(), nome: nome.trim(), telefone: tel, endereco: end || '', localOnly: true };
+  clients.unshift(c);
+  localStorage.setItem('wa_clients', JSON.stringify(clients));
+  return c;
+}
+
+window.saveClient = window.saveClient || async function (e) {
+  e.preventDefault();
+  const n = _v('cNome').trim();
+  if (clients.some(c => c.nome && c.nome.trim().toLowerCase() === n.toLowerCase())) return toast('Este cliente já está cadastrado.');
+  await ensureClient(n, _v('cTelefone'), _v('cEndereco'));
+  renderDashboard(); toast('Cliente salvo.');
+};
+window.editClient = window.editClient || async function (id) {
+  const c = clients.find(x => String(x.id) === String(id));
+  if (!c) return;
+  const nome = prompt('Nome:', c.nome); if (nome === null) return;
+  const tel = prompt('Telefone:', c.telefone || ''); if (tel === null) return;
+  const end = prompt('Endereço:', c.endereco || ''); if (end === null) return;
+  Object.assign(c, { nome: nome.trim(), telefone: tel.trim(), endereco: end.trim() });
+  localStorage.setItem('wa_clients', JSON.stringify(clients));
+  if (supabaseClient && !c.localOnly) {
+    let r = await supabaseClient.from('clientes').update({ nome: c.nome, telefone: c.telefone, endereco: c.endereco }).eq('id', c.id);
+    if (r.error) await supabaseClient.from('clientes').update({ nome: c.nome, telefone: c.telefone }).eq('id', c.id);
+  }
+  renderDashboard(); toast('Cliente atualizado.');
+};
+window.deleteClient = window.deleteClient || async function (id, nomeEnc) {
+  if (!confirm('Excluir o cliente ' + decodeURIComponent(nomeEnc) + '?')) return;
+  const c = clients.find(x => String(x.id) === String(id));
+  clients = clients.filter(x => String(x.id) !== String(id));
+  localStorage.setItem('wa_clients', JSON.stringify(clients));
+  if (supabaseClient && c && !c.localOnly) {
+    const { error } = await supabaseClient.from('clientes').delete().eq('id', c.id);
+    if (error) toast('Não foi possível excluir na nuvem (o cliente tem ordens?).');
+  }
+  renderDashboard();
+};
+
+/* Peças da ordem (nova ordem e edição) */
+function drawParts(p) {
+  const arr = JSON.parse(_v(p ? 'editPartsJson' : 'osPartsJson') || '[]');
+  document.getElementById(p ? 'editPartsContainer' : 'selectedPartsContainer').innerHTML = arr.length
+    ? arr.map((x, i) => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;"><span>${escS(x.nome)} × ${x.qtd} · ${formatBRL(x.preco * x.qtd)}</span><button type="button" class="danger-btn" style="padding:3px 8px;font-size:11px;" onclick="removePartFromOrder(${i},'${p || ''}')">✕</button></div>`).join('')
+    : '<small style="color:var(--muted);font-style:italic;">Nenhuma peça adicionada a esta ordem ainda.</small>';
+}
+window.addPartToOrder = window.addPartToOrder || function (p) {
+  p = p || '';
+  const opt = document.getElementById(p ? 'editSelectPart' : 'selectPartToAdd').selectedOptions[0];
+  if (!opt || !opt.value) return toast('Selecione uma peça.');
+  const js = document.getElementById(p ? 'editPartsJson' : 'osPartsJson');
+  const arr = JSON.parse(js.value || '[]');
+  const ex = arr.find(x => String(x.id) === opt.value);
+  if (ex) ex.qtd++; else arr.push({ id: opt.value, nome: decodeURIComponent(opt.dataset.nome), preco: Number(opt.dataset.preco), qtd: 1 });
+  js.value = JSON.stringify(arr); drawParts(p);
+};
+window.removePartFromOrder = window.removePartFromOrder || function (i, p) {
+  const js = document.getElementById(p ? 'editPartsJson' : 'osPartsJson');
+  const arr = JSON.parse(js.value || '[]'); arr.splice(i, 1);
+  js.value = JSON.stringify(arr); drawParts(p);
+};
+
+window.saveOrder = window.saveOrder || async function (e) {
+  e.preventDefault();
+  const c = await ensureClient(_v('osName'), _v('osPhone'), '');
+  const price = _n('osPrice'), pecas = JSON.parse(_v('osPartsJson') || '[]');
+  const o = {
+    name: c.nome, phone: _v('osPhone') || c.telefone, appliance: _v('osAppliance'), brand: _v('osBrand'),
+    serialNumber: _v('osSerial'), sealNumber: _v('osSeal'), checklistDamages: _v('osChecklistDamages'),
+    accessoriesLeft: _v('osAccessoriesLeft'), problem: _v('osProblem'), diagnosis: _v('osDiagnosis'), price,
+    refusalFee: _n('osRefusalFee'), entryFee: _n('osEntryFee'), paymentMethod: _v('osPaymentMethod'),
+    photoUrlEntry: _v('osPhotoEntry'), photoUrlDefect: '', partsUsed: pecas,
+    dias_garantia: parseInt(_v('osWarrantyDays'), 10) || 0, created: new Date().toISOString(),
+    status: price > 0 ? 'Aguardando aprovação' : 'Em análise técnica'
+  };
+  const full = {
+    cliente_id: c.id, titulo_servico: o.appliance, marca: o.brand, numero_serie: o.serialNumber, numero_lacre: o.sealNumber,
+    avarias_iniciais: o.checklistDamages, acessorios_deixados: o.accessoriesLeft, defeito: o.problem, diagnostico: o.diagnosis,
+    orcamento: price, taxa_recusa: o.refusalFee, valor_entrada: o.entryFee, forma_pagamento: o.paymentMethod,
+    foto_entrada: o.photoUrlEntry, pecas_usadas: pecas, dias_garantia: o.dias_garantia, status: o.status
+  };
+  const core = { cliente_id: c.id, titulo_servico: o.appliance, defeito: o.problem, diagnostico: o.diagnosis, orcamento: price, status: o.status };
+  const r = await dbInsert('ordens_servico', full, core);
+  if (r.data) { o.dbId = r.data.id; o.id = 'WR-' + r.data.id; _tk.o[r.data.id] = r.data.token; }
+  else { o.id = getNextShortOrderId(); o.localOnly = true; toast('Salva só neste aparelho: ' + r.error.message); }
+  orders.unshift(o); persistOrders(); renderDashboard(); toast('Ordem salva: ' + o.id);
+};
+
+window.editOrder = window.editOrder || function (id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) return;
+  const opts = parts.map(p => `<option value="${p.id}" data-nome="${encodeURIComponent(p.nome)}" data-preco="${p.preco}">${escS(p.nome)} (Est: ${p.estoque} - ${formatBRL(p.preco)})</option>`).join('');
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.innerHTML = `<div class="modal-box"><h3 style="color:var(--navy);margin-bottom:12px;">Editar / Lançar Orçamento - ${escS(o.id)}</h3>
+    <div class="field"><label>Defeito relatado</label><textarea id="eProb" rows="2">${escS(o.problem)}</textarea></div>
+    <div class="field"><label>Diagnóstico técnico / Solução</label><textarea id="eDiag" rows="3">${escS(o.diagnosis)}</textarea></div>
+    <div class="three">
+      <div class="field"><label>Orçamento (R$)</label><input id="ePrice" type="number" step="0.01" value="${Number(o.price) || ''}"></div>
+      <div class="field"><label>Sinal (R$)</label><input id="eEntry" type="number" step="0.01" value="${Number(o.entryFee) || 0}"></div>
+      <div class="field"><label>Taxa recusa (R$)</label><input id="eFee" type="number" step="0.01" value="${Number(o.refusalFee) || 0}"></div>
+    </div>
+    <div class="field"><label>Garantia (dias)</label><input id="eWar" type="number" min="0" value="${o.dias_garantia ?? 90}"></div>
+    <div class="field" style="background:#f8fafc;border:1px dashed #cbd5e1;padding:12px;border-radius:10px;"><label>Foto do defeito (bancada)</label>
+      <input type="file" accept="image/*" capture="environment" onchange="handleDefectImageUpload(event)">
+      <input type="hidden" id="editOsPhotoDefect">
+      <div id="editPreviewDefectContainer" style="display:${o.photoUrlDefect ? 'block' : 'none'};text-align:center;margin-top:8px;"><img id="editImagePreviewDefect" src="${o.photoUrlDefect ? escS(o.photoUrlDefect) : ''}" style="max-height:120px;max-width:100%;border-radius:6px;"></div></div>
+    <div class="field"><label>Peças utilizadas</label>
+      <div style="display:flex;gap:8px;"><select id="editSelectPart" style="flex:1;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:16px;"><option value="">Selecione...</option>${opts}</select>
+      <button type="button" class="primary" onclick="addPartToOrder('edit')">＋</button></div>
+      <div id="editPartsContainer" style="display:grid;gap:6px;margin-top:8px;"></div>
+      <input type="hidden" id="editPartsJson" value="${escS(JSON.stringify(o.partsUsed || []))}"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="secondary" onclick="this.closest('.modal').remove()">Cancelar</button>
+    <button class="primary" onclick="salvarEdicaoOrdem('${escS(o.id)}',this)">Salvar</button></div></div>`;
+  document.body.appendChild(m);
+  drawParts('edit');
+};
+async function salvarEdicaoOrdem(id, btn) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) return;
+  const price = _n('ePrice'), arr = JSON.parse(_v('editPartsJson') || '[]'), foto = _v('editOsPhotoDefect') || o.photoUrlDefect;
+  Object.assign(o, { problem: _v('eProb'), diagnosis: _v('eDiag'), price, entryFee: _n('eEntry'), refusalFee: _n('eFee'),
+    dias_garantia: parseInt(_v('eWar'), 10) || 0, photoUrlDefect: foto, partsUsed: arr });
+  if (price > 0 && o.status === 'Em análise técnica') o.status = 'Aguardando aprovação';
+  persistOrders();
+  if (supabaseClient && o.dbId) {
+    let r = await supabaseClient.from('ordens_servico').update({ defeito: o.problem, diagnostico: o.diagnosis, orcamento: price,
+      valor_entrada: o.entryFee, taxa_recusa: o.refusalFee, dias_garantia: o.dias_garantia, foto_defeito: foto, pecas_usadas: arr, status: o.status }).eq('id', o.dbId);
+    if (r.error) {
+      r = await supabaseClient.from('ordens_servico').update({ diagnostico: o.diagnosis, orcamento: price, status: o.status }).eq('id', o.dbId);
+      toast(r.error ? 'Salvo só neste aparelho: ' + r.error.message : 'Salvo com campos básicos (faltam colunas no banco).');
     }
   }
-  
-  alert("✅ Status do orçamento atualizado!");
-  renderClientView(realDbId);
+  btn.closest('.modal').remove(); renderDashboard(); toast('Ordem atualizada.');
 }
 
-function renderClientVisitView(id) {
-  document.getElementById("app").innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando visita...</h2></div>';
+window.saveVisit = window.saveVisit || async function (e) {
+  e.preventDefault();
+  const v = { cliente_nome: _v('vNome').trim(), telefone: _v('vTelefone'), endereco: _v('vEndereco'), data_visita: _v('vData'),
+    horario_visita: _v('vHorario'), aparelho_motivo: _v('vAparelho'), observacoes: _v('vObs'), motivo_recusa: '', status: 'Agendada' };
+  const r = await dbInsert('visitas', { cliente_nome: v.cliente_nome, telefone: v.telefone, endereco: v.endereco, data_visita: v.data_visita,
+    horario_visita: v.horario_visita, aparelho_motivo: v.aparelho_motivo, observacoes: v.observacoes, status: v.status }, null);
+  if (r.data) { v.dbId = r.data.id; v.id = 'VIS-' + r.data.id; _tk.v[r.data.id] = r.data.token; }
+  else { v.id = 'VIS-L' + Date.now(); toast('Salva só neste aparelho: ' + r.error.message); }
+  visits.unshift(v); localStorage.setItem('wa_visits', JSON.stringify(visits));
+  renderDashboard(); toast('Visita agendada.');
+};
+window.openMaps = window.openMaps || function (enc) { window.open('https://www.google.com/maps/search/?api=1&query=' + enc, '_blank'); };
 
-  let v = visits.find(item => String(item.id).toUpperCase() === String(id).toUpperCase() || String(item.dbId) === String(id));
+window.printOrderSheet = window.printOrderSheet || function (id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) return;
+  const pa = document.getElementById('printArea');
+  const rest = Math.max(0, (Number(o.price) || 0) - (Number(o.entryFee) || 0));
+  const pecas = (o.partsUsed || []).map(p => escS(p.nome) + ' × ' + (p.qtd || 1)).join(', ');
+  const linha = (t, x) => x ? `<p style="margin:3px 0;"><strong>${t}:</strong> ${escS(x)}</p>` : '';
+  pa.innerHTML = `<div style="font-family:Inter,Arial,sans-serif;max-width:720px;margin:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #102b50;padding-bottom:10px;margin-bottom:12px;">
+      <div><h2 style="margin:0;color:#102b50;">WA RESOLVE</h2><small>Assistência Técnica · ${escS(companyAddress)}${companyWhatsApp ? ' · WhatsApp ' + escS(companyWhatsApp) : ''}</small></div>
+      <div style="text-align:right;"><strong style="font-size:18px;">Ordem ${escS(o.id)}</strong><br><small>${formatarDataBR(o.created)}</small></div></div>
+    <h3 style="margin:8px 0;">Comprovante de entrada e termo de garantia</h3>
+    ${linha('Cliente', o.name)}${linha('WhatsApp', o.phone)}${linha('Aparelho', o.appliance + (o.brand ? ' · ' + o.brand : ''))}
+    ${linha('Nº de série', o.serialNumber)}${linha('Lacre de garantia', o.sealNumber)}${linha('Estado físico na entrada', o.checklistDamages)}
+    ${linha('Acessórios deixados', o.accessoriesLeft)}${linha('Defeito relatado', o.problem)}${linha('Diagnóstico', o.diagnosis)}${linha('Peças', pecas)}
+    <p style="margin:10px 0;font-size:15px;"><strong>Orçamento:</strong> ${o.price > 0 ? formatBRL(o.price) : 'A definir após análise'}
+      ${o.entryFee > 0 ? ' · <strong>Sinal:</strong> ' + formatBRL(o.entryFee) + ' · <strong>Restante:</strong> ' + formatBRL(rest) : ''}</p>
+    ${o.refusalFee > 0 ? `<p style="font-size:12px;">Taxa de análise caso o orçamento não seja aprovado: ${formatBRL(o.refusalFee)}.</p>` : ''}
+    <div style="border:1px solid #999;padding:10px;font-size:12px;margin-top:12px;"><strong>Termo de garantia:</strong> a garantia de ${o.dias_garantia ?? 90} dias cobre o serviço executado e as peças substituídas, contada da data de conclusão. Não cobre mau uso, quedas, oxidação, sobrecarga elétrica, lacre rompido ou intervenção de terceiros. O cliente declara que o estado físico descrito acima confere com o equipamento entregue.</div>
+    <div style="display:flex;gap:40px;margin-top:50px;"><div style="flex:1;border-top:1px solid #000;text-align:center;padding-top:4px;font-size:12px;">Cliente</div><div style="flex:1;border-top:1px solid #000;text-align:center;padding-top:4px;font-size:12px;">WA Resolve</div></div></div>`;
+  pa.style.display = 'block';
+  window.onafterprint = () => { pa.style.display = 'none'; pa.innerHTML = ''; };
+  setTimeout(() => window.print(), 150);
+};
 
-  if (!v && supabaseClient) {
-    supabaseClient.from("visitas").select("*").then(({data}) => {
-      if (data && data.length > 0) {
-        let found = data.find(item => String(item.id) === String(id).replace(/\D/g, "") || "VIS-" + item.id === String(id));
-        if (!found) found = data[0];
-        if (found) {
-          v = {
-            id: "VIS-" + found.id,
-            dbId: found.id,
-            cliente_nome: found.cliente_nome,
-            telefone: found.telefone,
-            endereco: found.endereco,
-            data_visita: found.data_visita,
-            horario_visita: found.horario_visita,
-            aparelho_motivo: found.aparelho_motivo,
-            observacoes: found.observacoes,
-            motivo_recusa: found.motivo_recusa || "",
-            status: found.status
-          };
-          displayClientVisitPage(v);
-          return;
-        }
-      }
-      document.getElementById("app").innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2 style="color:var(--navy);">Visita não encontrada</h2></div>';
-    });
-    return;
+/* ---------- 10. NOVO VISUAL ---------- */
+(function () {
+  const s = document.createElement('style');
+  s.textContent = `
+  body{background:linear-gradient(180deg,#e8effa 0,#f4f7fb 320px) fixed;letter-spacing:-.005em}
+  button{border-radius:10px;font-size:13px;box-shadow:0 1px 2px rgba(16,43,80,.08)}
+  .top{border-radius:0 0 20px 20px;background:linear-gradient(120deg,#0c2142 0%,#1d477a 100%);box-shadow:0 10px 28px rgba(16,43,80,.22)}
+  .top button.secondary{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.22);box-shadow:none;backdrop-filter:blur(4px)}
+  .top button.gold{border-radius:99px}
+  .sb-badge{box-shadow:none}
+  .content{padding-top:22px}
+  .stat{border:0;border-radius:16px;padding:20px;box-shadow:0 6px 18px rgba(16,43,80,.07);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+  .stat:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(16,43,80,.12)}
+  .stat strong{font-size:28px;letter-spacing:-.02em}
+  .panel{border:0;border-radius:18px;padding:24px;box-shadow:0 8px 24px rgba(16,43,80,.07)}
+  .panel h2{font-size:18px;letter-spacing:-.01em}
+  .panel h2>span[style*="38px"]{background:linear-gradient(135deg,#1672d3,#1d477a)!important;box-shadow:0 4px 10px rgba(22,114,211,.35)}
+  .card-item{border:1px solid #e8edf4;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(16,43,80,.04)}
+  .card-item:hover{box-shadow:0 8px 20px rgba(16,43,80,.09);transform:translateY(-1px)}
+  .tag{padding:5px 11px;letter-spacing:.2px}
+  .tag::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px}
+  .field input,.field select,.field textarea{border-radius:11px;border-color:#dbe4ef;background:#fbfcfe}
+  .field input:focus,.field select:focus,.field textarea:focus{background:#fff;border-color:#1672d3;box-shadow:0 0 0 4px rgba(22,114,211,.12)}
+  .field label{text-transform:uppercase;font-size:11px;letter-spacing:.4px;color:#5a6b82}
+  .primary{background:linear-gradient(135deg,#1c7be0,#1560b5);box-shadow:0 4px 12px rgba(22,114,211,.3)}
+  .whatsapp-btn{box-shadow:0 3px 8px rgba(19,167,101,.25)}
+  .table-custom{border-collapse:separate;border-spacing:0;border-radius:12px;overflow:hidden}
+  .table-custom th{background:#102b50;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .table-custom th,.table-custom td{border:0;border-bottom:1px solid #edf1f6}
+  .modal{animation:waFade .2s}.modal-box{border-radius:20px;animation:waIn .25s}
+  @keyframes waFade{from{opacity:0}}
+  .lock-screen{border:0;border-radius:24px;box-shadow:0 24px 60px rgba(16,43,80,.16);border-top:5px solid var(--gold)}
+  .wa-more{position:relative;display:inline-block}
+  .wa-more summary{list-style:none;cursor:pointer;background:#eaf0f8;color:var(--navy);font-weight:700;font-size:12px;padding:6px 12px;border-radius:10px}
+  .wa-more summary::-webkit-details-marker{display:none}
+  .wa-more[open] summary{background:#102b50;color:#fff}
+  .wa-more-list{position:absolute;right:0;top:calc(100% + 6px);z-index:30;background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:6px;display:grid;gap:4px;min-width:190px;box-shadow:0 14px 34px rgba(16,43,80,.18)}
+  .wa-more-list button{text-align:left;background:#f6f8fb!important;color:var(--navy)!important;border:0!important;box-shadow:none}
+  .wa-more-list .danger-btn{color:#c63b48!important;background:#fff3f3!important}
+  @media(min-width:901px){
+    .nav-tabs{background:transparent;border:0;box-shadow:none;padding:16px 24px 0;gap:8px}
+    .nav-tab{background:#fff;border:1px solid #e3e8ef;border-radius:99px;padding:10px 18px;font-size:13px;color:#41536c;box-shadow:0 1px 3px rgba(16,43,80,.05)}
+    .nav-tab.active{background:#102b50;color:#fff;border-color:#102b50;box-shadow:0 6px 14px rgba(16,43,80,.25)}
   }
+  @media(max-width:900px){.top{border-radius:0 0 16px 16px}.panel{padding:18px}.nav-tab.active{color:#1672d3}}`;
+  document.head.appendChild(s);
+})();
 
-  if (v) {
-    displayClientVisitPage(v);
-  }
+/* Agrupa os botões secundários da ordem num menu "⋯ Mais" */
+function organizarAcoes() {
+  if (typeof activeTab === 'undefined' || activeTab !== 'orders') return;
+  document.querySelectorAll('.card-item.visit-card > div:last-child').forEach(row => {
+    const btns = [...row.children].filter(b => b.tagName === 'BUTTON');
+    if (btns.length < 5 || row.dataset.org) return;
+    row.dataset.org = '1';
+    const d = document.createElement('details');
+    d.className = 'wa-more';
+    d.innerHTML = '<summary>⋯ Mais</summary><div class="wa-more-list"></div>';
+    btns.filter((b, i) => i >= 2 && !b.textContent.includes('QR')).forEach(b => d.querySelector('.wa-more-list').appendChild(b));
+    row.appendChild(d);
+  });
 }
-
-function displayClientVisitPage(v) {
-  const dataFormatada = formatarDataBR(v.data_visita);
-  const companyPhoneClean = (companyWhatsApp || "").replace(/\D/g, "");
-  const logoHeader = companyLogoUrl ? `
-    <div style="text-align:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line);">
-      <img src="${companyLogoUrl}" alt="Logo WA Resolve" style="max-height:85px; width:auto; max-width:240px; object-fit:contain;">
-    </div>` : '';
-
-  const isConfirmed = String(v.status).toLowerCase().includes("confirmada");
-  const visitActionsHtml = isConfirmed ? `
-    <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
-      <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ Visita / Coleta Confirmada!</h3>
-      <p style="color:#047857; font-size:14px;">Agradecemos a confirmação. Nossa equipe comparecerá no horário agendado.</p>
-    </div>
-  ` : `
-    <div style="display:grid; gap:10px;">
-      <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:16px;" onclick="confirmarColetaCliente('${v.id}', ${v.dbId || 0})">✅ SIM, pode coletar no horário previsto</button>
-      <button class="danger-btn" style="width:100%; padding:14px; font-size:15px;" onclick="recusarColetaCliente('${v.id}', ${v.dbId || 0})">❌ NÃO, não poderei receber (informar motivo)</button>
-    </div>
-  `;
-
-  document.getElementById("app").innerHTML = `
-    <header class="top">
-      <div class="brand">
-        <div class="brand-badge">WA RESOLVE</div>
-        <span>Confirmação de Coleta / Visita Técnica</span>
-      </div>
-    </header>
-    <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:14px; padding:22px; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,0.05);">
-      ${logoHeader}
-      <div style="text-align:center; margin-bottom:18px;">
-        <span class="tag ${v.status}" style="font-size:13px; padding:6px 14px;">Status: ${v.status}</span>
-        <h2 style="color:var(--navy); margin-top:10px;">Coleta de Equipamento</h2>
-        <p style="color:var(--muted);">WA Resolve Assistência Técnica</p>
-      </div>
-
-      <div style="background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:20px;">
-        <p style="margin-bottom:8px;"><strong>Cliente:</strong> ${v.cliente_nome}</p>
-        <p style="margin-bottom:8px;"><strong>Equipamento a ser coletado:</strong> <span style="color:var(--blue); font-weight:700;">${v.aparelho_motivo}</span></p>
-        <p style="margin-bottom:8px;"><strong>Data Prevista:</strong> 📅 ${dataFormatada}</p>
-        <p style="margin-bottom:8px;"><strong>Horário Previsto:</strong> ⏰ ${v.horario_visita}</p>
-        <p style="margin-bottom:0;"><strong>Endereço:</strong> 📍 ${v.endereco}</p>
-      </div>
-
-      <div style="text-align:center; margin-bottom:16px;">
-        <h3 style="font-size:16px; color:var(--navy); margin-bottom:8px;">Podemos comparecer para coletar o seu equipamento?</h3>
-      </div>
-
-      ${visitActionsHtml}
-
-      ${companyPhoneClean ? `
-        <div style="margin-top:20px; text-align:center;">
-          <button class="whatsapp-btn" style="width:100%; padding:10px;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou vendo o agendamento da visita ${v.id}.', '_blank')">💬 Falar com a Assistência no WhatsApp</button>
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
-
-function confirmarColetaCliente(id, dbId) {
-  const v = visits.find(item => String(item.id) === String(id));
-  if (v) {
-    v.status = "Confirmada";
-    localStorage.setItem("wa_visits", JSON.stringify(visits));
-  }
-  const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
-  if (supabaseClient && realDbId && realDbId > 0) {
-    supabaseClient.from("visitas").update({ status: "Confirmada" }).eq("id", realDbId);
-  }
-  alert("✅ Muito obrigado! Visita confirmada.");
-  renderClientVisitView(id);
-}
-
-function recusarColetaCliente(id, dbId) {
-  const motivo = prompt("Por favor, informe o motivo ou sugira outra data/horário:");
-  if (motivo !== null) {
-    const v = visits.find(item => String(item.id) === String(id));
-    if (v) {
-      v.status = "Reagendar / Não autorizado";
-      v.motivo_recusa = motivo || "Cliente não informou o motivo";
-      localStorage.setItem("wa_visits", JSON.stringify(visits));
-    }
-    const realDbId = dbId || (v ? v.dbId : id.replace(/\D/g, ""));
-    if (supabaseClient && realDbId && realDbId > 0) {
-      supabaseClient.from("visitas").update({ status: "Reagendar / Não autorizado", observacoes: "Motivo: " + (motivo || "Não informado") }).eq("id", realDbId);
-    }
-    alert("Agradecemos o aviso! Entraremos em contato.");
-    renderClientVisitView(id);
-  }
-}
-</script>
-</body>
-</html>
+(function () {
+  const orig = window.renderDashboard;
+  window.renderDashboard = function () { orig.apply(this, arguments); organizarAcoes(); };
+})();
+document.addEventListener('click', e => {
+  document.querySelectorAll('.wa-more[open]').forEach(d => { if (!d.contains(e.target)) d.removeAttribute('open'); });
+});
