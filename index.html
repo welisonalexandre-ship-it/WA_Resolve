@@ -289,7 +289,7 @@ function syncFromSupabase() {
         brand: d.marca || "", serialNumber: d.numero_serie || "", sealNumber: d.numero_lacre || "",
         checklistDamages: d.avarias_iniciais || "", accessoriesLeft: d.acessorios_deixados || "",
         problem: d.defeito || d.descricao || "", diagnosis: d.diagnostico || "",
-        price: Number(d.orcamento) || 0, refusalFee: Number(d.taxa_recusa) || 0, entryFee: Number(d.valor_entrada) || 0,
+        price: Number(d.orcamento) || 0, refusalFee: Number(d.taxa_recusa) || 50.00, entryFee: Number(d.valor_entrada) || 0,
         paymentMethod: d.forma_pagamento || "Pix", photoUrlEntry: d.foto_entrada || d.foto_url || "",
         photoUrlDefect: d.foto_defeito || "", status: d.status || (Number(d.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
         created: d.created_at, data_conclusao: d.data_conclusao || '', dias_garantia: d.dias_garantia !== null ? Number(d.dias_garantia) : 90
@@ -388,7 +388,7 @@ function renderOrders() {
   const awaiting = orders.filter(o => o.status === "Aguardando aprovação").length;
   const inProgress = orders.filter(o => o.status.includes("Aprovado") || o.status === "Em conserto").length;
   const refused = orders.filter(o => o.status === "Não aprovado");
-  const totalRefusalFees = refused.reduce((sum, o) => sum + (Number(o.refusalFee) || 0), 0);
+  const totalRefusalFees = refused.reduce((sum, o) => sum + (Number(o.refusalFee) || 50.00), 0);
 
   let ordersListHtml = "";
   if (orders.length === 0) {
@@ -470,6 +470,16 @@ function renderOrders() {
             <div class="field">
               <label>Nº do Lacre de Garantia</label>
               <input id="osSeal" placeholder="Ex.: LACRE 0413">
+            </div>
+          </div>
+          <div class="two">
+            <div class="field">
+              <label>Valor do Orçamento (R$) (Opcional)</label>
+              <input id="osPrice" type="number" step="0.01" placeholder="0.00 (ou defina depois)">
+            </div>
+            <div class="field">
+              <label>Taxa de Não Aprovação (R$)</label>
+              <input id="osRefusalFee" type="number" step="0.01" value="50.00" placeholder="50.00">
             </div>
           </div>
           <div class="field">
@@ -729,9 +739,11 @@ async function saveOrder(e) {
   const brand = document.getElementById("osBrand").value.trim();
   const serialNumber = document.getElementById("osSerial").value.trim();
   const sealNumber = document.getElementById("osSeal").value.trim();
+  const price = parseFloat(document.getElementById("osPrice").value) || 0;
+  const refusalFee = parseFloat(document.getElementById("osRefusalFee").value) || 50.00;
   const problem = document.getElementById("osProblem").value.trim();
   const photoUrlEntry = document.getElementById("osPhotoEntry").value.trim();
-  const status = "Em análise técnica";
+  const status = price > 0 ? "Aguardando aprovação" : "Em análise técnica";
 
   let cId = null;
   if (supabaseClient) {
@@ -744,11 +756,11 @@ async function saveOrder(e) {
       }
       const { data: osRes, error } = await supabaseClient.from("ordens_servico").insert([{
         cliente_id: cId, titulo_servico: appliance, marca: brand, numero_serie: serialNumber, numero_lacre: sealNumber,
-        defeito: problem, foto_entrada: photoUrlEntry, status: status, orcamento: 0
+        defeito: problem, foto_entrada: photoUrlEntry, status: status, orcamento: price, taxa_recusa: refusalFee
       }]).select("id").single();
       if (error) throw error;
       if (osRes) {
-        orders.push({ id: "WR-" + osRes.id, dbId: osRes.id, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price: 0 });
+        orders.push({ id: "WR-" + osRes.id, dbId: osRes.id, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price, refusalFee });
         localStorage.setItem("wa_orders", JSON.stringify(orders));
         alert("✅ Ordem WR-" + osRes.id + " salva com sucesso na nuvem!");
         renderDashboard(); return;
@@ -757,7 +769,7 @@ async function saveOrder(e) {
   }
 
   const shortId = getNextShortOrderId();
-  orders.push({ id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price: 0, localOnly: true });
+  orders.push({ id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price, refusalFee, localOnly: true });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
   alert("✅ Ordem " + shortId + " salva localmente!");
   renderDashboard();
@@ -860,7 +872,7 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => alert("Link copiado!\n\n" + url));
 }
 
-// CORREÇÃO DA PÁGINA PÚBLICA DO CLIENTE COM BOTÕES DE APROVAÇÃO
+// CORREÇÃO DA PÁGINA PÚBLICA DO CLIENTE COM A TAXA DE RECUSA E BOTÕES DE APROVAÇÃO
 function renderClientView(id) {
   const app = document.getElementById("app");
   app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
@@ -880,7 +892,7 @@ function renderClientView(id) {
       name: data.clientes ? data.clientes.nome : "Cliente",
       appliance: data.titulo_servico || "Aparelho", brand: data.marca || "",
       problem: data.defeito || data.descricao || "", diagnosis: data.diagnostico || "",
-      price: Number(data.orcamento) || 0, refusalFee: Number(data.taxa_recusa) || 30.00,
+      price: Number(data.orcamento) || 0, refusalFee: Number(data.taxa_recusa) || 50.00,
       entryFee: Number(data.valor_entrada) || 0, photoUrlDefect: data.foto_defeito || data.foto_entrada || "",
       status: data.status || "Aguardando aprovação", dias_garantia: data.dias_garantia || 90
     };
@@ -893,6 +905,7 @@ function displayClientOrderPage(o) {
   const contactCompanyBtn = companyPhoneClean ? `<button class="whatsapp-btn" style="width:100%; margin-top:10px; padding:12px; justify-content:center;" onclick="window.open('https://wa.me/55${companyPhoneClean}?text=Olá! Estou visualizando a minha Ordem ${o.id}', '_blank')">💬 Falar com a Assistência no WhatsApp</button>` : '';
 
   const preco = Number(o.price || 0);
+  const taxaRecusa = Number(o.refusalFee || 50.00);
   const fotoHtml = o.photoUrlDefect ? `<div style="margin:16px 0; text-align:center;"><img src="${o.photoUrlDefect}" style="max-width:100%; max-height:280px; border-radius:8px;"></div>` : '';
 
   const isApproved = String(o.status).toLowerCase().includes("aprovado");
@@ -907,11 +920,11 @@ function displayClientOrderPage(o) {
       </div>
       ${contactCompanyBtn}`;
   } else {
-    // OS BOTÕES DE APROVAÇÃO APARECEM AQUI PARA O CLIENTE
     actionsHtml = `
       <div style="margin-top:20px; display:grid; gap:10px;">
         <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:15px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId})">✅ Aprovar Orçamento</button>
         <button class="danger-btn" style="width:100%; padding:12px; font-size:14px;" onclick="clientActionOrder('${o.id}', 'Não aprovado', ${o.dbId})">❌ Não Aprovar (Recusar)</button>
+        <p style="font-size:12px; color:var(--muted); text-align:center; margin-top:4px;">* Caso o orçamento não seja aprovado, incide taxa de análise/deslocamento no valor de <strong>${formatBRL(taxaRecusa)}</strong>.</p>
         ${contactCompanyBtn}
       </div>`;
   }
@@ -962,7 +975,7 @@ function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, p
   const detalhesTxt = decodeURIComponent(details || "");
   const urlOs = getPublicSiteBaseUrl().replace(/\/$/, "") + "/#cliente=" + encodeURIComponent(dbId);
 
-  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (*${orderId}*) referente ao conserto do seu(sua) *${nomeAparelho}* na *WA Resolve*:\n\n💰 *Valor:* ${formatBRL(price)}\n${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ''}\n👉 *Clique no link para ver detalhes e aprovar online:*\n${urlOs}`;
+  const texto = `Olá, *${nomeCliente}*! Segue o link de visualização da sua Ordem (*${orderId}*) referente ao conserto do seu(sua) *${nomeAparelho}* na *WA Resolve*:\n\n💰 *Valor:* ${price > 0 ? formatBRL(price) : 'Em análise'}\n${detalhesTxt ? `🛠️ *Serviço:* ${detalhesTxt}\n` : ''}\n👉 *Clique no link para ver detalhes e aprovar online:*\n${urlOs}`;
   window.open(`https://wa.me/55${cleanPhone}?text=${encodeURIComponent(texto)}`, '_blank');
 }
 
