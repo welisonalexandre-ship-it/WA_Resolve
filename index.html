@@ -56,9 +56,9 @@
     .top {
       min-height: 70px; padding: 12px 28px; background: linear-gradient(120deg, #0c2142 0%, #1d477a 100%); border-radius: 0 0 16px 16px; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; box-shadow: 0 10px 25px rgba(16,43,80,.2);
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand-title { font-size: 22px; font-weight: 900; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
-    .brand-sub { font-size: 11px; color: #93c5fd; letter-spacing: 0.3px; font-weight: 500; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-logo-img { height: 44px; width: auto; object-fit: contain; }
+    .brand-sub { font-size: 11px; color: #93c5fd; letter-spacing: 0.3px; font-weight: 500; margin-top: 2px; }
     
     .sb-badge {
       font-size: 11px; padding: 6px 12px; border-radius: 99px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
@@ -335,8 +335,11 @@ function setTab(tab) {
 }
 
 function renderLockScreen() {
+  const brandLogoHtml = `<img src="togo.png" alt="WA Resolve" class="brand-logo-img" style="height: 44px; object-fit: contain;" onerror="this.onerror=null;this.src='logo.png';this.style.display='none';document.getElementById('fallbackLogoTextLock').style.display='block';">`;
+  const fallbackText = `<span id="fallbackLogoTextLock" style="display:none; font-size:22px; font-weight:900; color:#fff;">WA Central de Serviços</span>`;
+
   document.getElementById("app").innerHTML = `
-    <header class="top"><div class="brand"><div class="brand-title">WA ❄️ <span style="font-size:15px; font-weight:500;">Central de Serviços</span></div></div></header>
+    <header class="top"><div class="brand">${brandLogoHtml}${fallbackText}</div></header>
     <div class="lock-screen">
       <div style="font-size:40px; margin-bottom:10px;">🔒</div>
       <h2 style="color:var(--navy); margin-bottom:6px;">Acesso Restrito</h2>
@@ -352,13 +355,14 @@ function renderDashboard() {
   const sbStatus = supabaseClient ? '<span class="sb-badge sb-on" onclick="openKeyModal()">● Nuvem Conectada</span>' : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
   const companyBadge = companyWhatsApp ? `<span style="font-size:13px; color:#d1fae5; font-weight:600;">📱 WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</span>` : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="openKeyModal()">Configurar WhatsApp</button>';
 
+  const brandLogoHtml = `<img src="togo.png" alt="WA Resolve" class="brand-logo-img" style="height: 48px; object-fit: contain;" onerror="this.onerror=null;this.src='logo.png';this.style.display='none';document.getElementById('fallbackLogoText').style.display='block';">`;
+  const fallbackText = `<div id="fallbackLogoText" style="display:none;"><div class="brand-title">WA ❄️ Central de Serviços</div><div class="brand-sub">Rapidez · Honestidade · Garantia</div></div>`;
+
   const header = `
     <header class="top">
       <div class="brand">
-        <div>
-          <div class="brand-title">WA ❄️ Central de Serviços</div>
-          <div class="brand-sub">Rapidez · Honestidade · Garantia</div>
-        </div>
+        ${brandLogoHtml}
+        ${fallbackText}
       </div>
       <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         ${companyBadge}
