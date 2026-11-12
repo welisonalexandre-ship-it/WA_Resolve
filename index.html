@@ -142,6 +142,12 @@
     .table-custom { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
     .table-custom th, .table-custom td { padding: 10px 12px; border-bottom: 1px solid #edf2f7; text-align: left; }
     .table-custom th { background: #0c2142; color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+  @media print {
+    body { background:#fff!important; }
+    #app, #syncWarning {display:none!important;}
+    #printArea {display:block!important;position:static!important;overflow:visible!important;}
+    @page {size:A4;margin:12mm;}
+  }
   </style>
 </head>
 <body>
@@ -164,17 +170,48 @@ let companyWhatsApp = localStorage.getItem("wa_company_phone") || "";
 let companyPixKey = localStorage.getItem("wa_company_pix") || "";
 let companyLogoUrl = localStorage.getItem("wa_company_logo") || "";
 let companyAddress = localStorage.getItem("wa_company_address") || "Mossoró - RN";
-let adminPin = localStorage.getItem("wa_admin_pin") || "1234";
+let adminPin = localStorage.getItem("wa_admin_pin") || "1234"; // PIN visual legado: NAO e autenticacao do Supabase
 let isUnlocked = sessionStorage.getItem("wa_unlocked") === "true";
 let activeTab = localStorage.getItem("wa_active_tab") || "orders";
 let visitSearchQuery = localStorage.getItem("wa_visit_search") || "";
 let historySearchQuery = localStorage.getItem("wa_history_search") || "";
 let balanceFilterPeriod = localStorage.getItem("wa_balance_period") || "all";
 
-let orders = JSON.parse(localStorage.getItem("wa_orders") || "[]");
-let clients = JSON.parse(localStorage.getItem("wa_clients") || "[]");
-let visits = JSON.parse(localStorage.getItem("wa_visits") || "[]");
-let parts = JSON.parse(localStorage.getItem("wa_parts") || '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
+function safeLocalArray(key, defaultValue = "[]") {
+  try { const result = JSON.parse(localStorage.getItem(key) || defaultValue); return Array.isArray(result) ? result : []; }
+  catch (e) { console.error("Dados locais inválidos em " + key, e); return []; }
+}
+function htmlEscape(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function saveLocal(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch (e) { console.error("Falha de armazenamento local", e); alert("Não foi possível salvar uma cópia local. Libere espaço no navegador ou exporte os dados."); return false; }
+}
+function cloudError(action, error) {
+  console.error("WA Resolve — " + action, error);
+  alert("⚠️ " + action + " falhou na nuvem. Os dados NÃO foram confirmados no banco. Verifique sua conexão/permissões e tente novamente.\n\nDetalhe: " + (error?.message || "erro de rede"));
+}
+function exportLocalBackup() {
+  const payload = {app:"WA Resolve", version:"etapa1", exported_at:new Date().toISOString(),
+    orders, clients, visits, parts, settings: {companyWhatsApp, companyPixKey, companyAddress}};
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='WA_Resolve_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function addSyncWarning(text) {
+  let el=document.getElementById('syncWarning');
+  if (!el) {el=document.createElement('div');el.id='syncWarning';el.setAttribute('role','alert');el.style.cssText='position:fixed;bottom:82px;left:12px;right:12px;max-width:750px;margin:auto;z-index:2000;background:#fff2db;border:2px solid #eab308;border-radius:12px;padding:12px 16px;box-shadow:0 6px 20px #0002;color:#713f12';document.body.appendChild(el);}
+  el.textContent=text;
+}
+let cloudReadFailed=false;
+let cloudLoaded=false;
+let pendingCloudWrites=0;
+let orders = safeLocalArray("wa_orders");
+let clients = safeLocalArray("wa_clients");
+let visits = safeLocalArray("wa_visits");
+let parts = safeLocalArray("wa_parts", '[{"id":1,"nome":"Capacitor 2,5uF","preco":6.00,"estoque":10},{"id":2,"nome":"Fusível Térmico","preco":3.00,"estoque":15},{"id":3,"nome":"Malha Teclado","preco":30.00,"estoque":5},{"id":4,"nome":"Relé Gelágua","preco":10.00,"estoque":8},{"id":5,"nome":"Magnetron","preco":85.00,"estoque":3}]');
 
 function formatarDataBR(dataIso) {
   if (!dataIso) return "-";
@@ -264,58 +301,52 @@ window.addEventListener("DOMContentLoaded", () => {
     else if (clienteId) renderClientView(clienteId);
     else if (!isUnlocked) renderLockScreen();
     else renderDashboard();
-    if (supabaseClient) syncFromSupabase();
+    if (supabaseClient && isUnlocked && !clienteId && !visitaId) syncFromSupabase();
   } catch(err) { console.error("Erro no DOMContentLoaded:", err); }
 });
 
-function syncFromSupabase() {
-  if (!supabaseClient) return;
-  supabaseClient.from("clientes").select("*").order("id", { ascending: false }).then(({ data: cData }) => {
-    if (cData && cData.length > 0) {
-      clients = cData.map(c => ({
-        id: c.id,
-        nome: c.nome,
-        telefone: c.telefone || "",
-        endereco: c.endereco || ""
-      }));
-      localStorage.setItem("wa_clients", JSON.stringify(clients));
-      if (isUnlocked && activeTab === 'clients') renderDashboard();
-    }
-  });
+async function syncFromSupabase() {
+  if (!supabaseClient || !isUnlocked) return;
+  // Nunca descartar ordens offline ao ler a nuvem.
+  const localOnly = orders.filter(o => o.localOnly || !o.dbId);
+  try {
+    const [cResult,oResult,vResult]=await Promise.all([
+      supabaseClient.from("clientes").select("*").order("id",{ascending:false}),
+      supabaseClient.from("ordens_servico").select("*, clientes(*)").order("id",{ascending:false}),
+      supabaseClient.from("visitas").select("*").order("id",{ascending:false})
+    ]);
+    const errors=[cResult.error,oResult.error,vResult.error].filter(Boolean);
+    if(errors.length){cloudReadFailed=true; addSyncWarning('⚠️ Falha ao consultar a nuvem. Exibindo dados armazenados neste dispositivo. Confirme permissões RLS e conexão.'); console.error(errors);return;}
+    clients=cResult.data.map(c=>({id:c.id,nome:c.nome,telefone:c.telefone||"",endereco:c.endereco||""}));
+    const cloudOrders=oResult.data.map(d=>({
+      id:"WR-"+d.id, dbId:d.id,
+      name:d.clientes?d.clientes.nome:"Cliente",phone:d.clientes?d.clientes.telefone:"",
+      appliance:d.titulo_servico||"Aparelho",partsUsed:d.pecas_usadas||[],
+      brand:d.marca||"",serialNumber:d.numero_serie||"",sealNumber:d.numero_lacre||"",
+      checklistDamages:d.avarias_iniciais||"",accessoriesLeft:d.acessorios_deixados||"",
+      problem:d.defeito||d.descricao||"",diagnosis:d.diagnostico||"",
+      price:Number(d.orcamento)||0,refusalFee:d.taxa_recusa==null?50:Number(d.taxa_recusa),
+      entryFee:Number(d.valor_entrada)||0,paymentMethod:d.forma_pagamento||"Pix",
+      photoUrlEntry:d.foto_entrada||d.foto_url||"",photoUrlDefect:d.foto_defeito||"",
+      status:d.status||(Number(d.orcamento)>0?"Aguardando aprovação":"Em análise técnica"),
+      created:d.created_at,data_conclusao:d.data_conclusao||'',dias_garantia:d.dias_garantia==null?90:Number(d.dias_garantia)
+    }));
+    orders=[...cloudOrders,...localOnly.filter(l=>!cloudOrders.some(c=>c.id===l.id))];
+    visits=vResult.data.map(v=>({
+      id:"VIS-"+v.id,dbId:v.id,cliente_nome:v.cliente_nome,telefone:v.telefone,endereco:v.endereco,
+      data_visita:v.data_visita,horario_visita:v.horario_visita,aparelho_motivo:v.aparelho_motivo,
+      observacoes:v.observacoes,motivo_recusa:v.motivo_recusa||"",status:v.status||"Agendada"
+    }));
+    saveLocal("wa_clients",clients);saveLocal("wa_orders",orders);saveLocal("wa_visits",visits);
+    cloudLoaded=true;cloudReadFailed=false;
+    if(isUnlocked) renderDashboard();
+    if(localOnly.length) addSyncWarning('⚠️ Há ordens salvas apenas neste dispositivo. Faça um backup e regularize antes de limpar dados do navegador.');
+  }catch(e){cloudReadFailed=true;console.error(e);addSyncWarning('⚠️ Conexão com a nuvem falhou. Dados locais preservados.');}
+}
 
-  supabaseClient.from("ordens_servico").select("*, clientes(*)").order("id", { ascending: false }).then(({ data: oData }) => {
-    if (oData && oData.length > 0) {
-      orders = oData.map(d => ({
-        id: "WR-" + d.id, dbId: d.id,
-        name: d.clientes ? d.clientes.nome : "Cliente",
-        phone: d.clientes ? d.clientes.telefone : "",
-        appliance: d.titulo_servico || "Aparelho",
-        partsUsed: d.pecas_usadas || [],
-        brand: d.marca || "", serialNumber: d.numero_serie || "", sealNumber: d.numero_lacre || "",
-        checklistDamages: d.avarias_iniciais || "", accessoriesLeft: d.acessorios_deixados || "",
-        problem: d.defeito || d.descricao || "", diagnosis: d.diagnostico || "",
-        price: Number(d.orcamento) || 0, refusalFee: Number(d.taxa_recusa) || 50.00, entryFee: Number(d.valor_entrada) || 0,
-        paymentMethod: d.forma_pagamento || "Pix", photoUrlEntry: d.foto_entrada || d.foto_url || "",
-        photoUrlDefect: d.foto_defeito || "", status: d.status || (Number(d.orcamento) > 0 ? "Aguardando aprovação" : "Em análise técnica"),
-        created: d.created_at, data_conclusao: d.data_conclusao || '', dias_garantia: d.dias_garantia !== null ? Number(d.dias_garantia) : 90
-      }));
-      localStorage.setItem("wa_orders", JSON.stringify(orders));
-      if (isUnlocked && (activeTab === 'orders' || activeTab === 'history' || activeTab === 'balance')) renderDashboard();
-    }
-  });
-
-  supabaseClient.from("visitas").select("*").order("id", { ascending: false }).then(({ data: vData }) => {
-    if (vData && vData.length > 0) {
-      visits = vData.map(v => ({
-        id: "VIS-" + v.id, dbId: v.id,
-        cliente_nome: v.cliente_nome, telefone: v.telefone, endereco: v.endereco,
-        data_visita: v.data_visita, horario_visita: v.horario_visita, aparelho_motivo: v.aparelho_motivo,
-        observacoes: v.observacoes, motivo_recusa: v.motivo_recusa || "", status: v.status || "Agendada"
-      }));
-      localStorage.setItem("wa_visits", JSON.stringify(visits));
-      if (isUnlocked && activeTab === 'visits') renderDashboard();
-    }
-  });
+function renderClientVisitView(id) {
+  const app=document.getElementById("app");
+  app.innerHTML='<div class="lock-screen"><h2>Consulta de visita indisponível</h2><p>Este link requer configuração de consulta pública segura no Supabase. Entre em contato com a assistência.</p></div>';
 }
 
 function unlock(e) {
@@ -323,7 +354,7 @@ function unlock(e) {
   const input = document.getElementById("pinInput").value.trim();
   if (input === adminPin) {
     isUnlocked = true; sessionStorage.setItem("wa_unlocked", "true"); renderDashboard();
-  } else alert("Senha incorreta! Padrão: 1234");
+  } else alert("PIN incorreto.");
 }
 
 function lock() {
@@ -346,14 +377,14 @@ function renderLockScreen() {
       <h2 style="color:var(--navy); margin-bottom:6px;">Acesso Restrito</h2>
       <p style="color:var(--muted); font-size:13px; margin-bottom:18px;">Digite sua senha para acessar o painel.</p>
       <form onsubmit="unlock(event)">
-        <div class="field"><input type="password" id="pinInput" inputmode="numeric" placeholder="Senha (1234)" autofocus required style="text-align:center; font-size:18px; letter-spacing:3px;"></div>
+        <div class="field"><input type="password" id="pinInput" inputmode="numeric" placeholder="PIN de acesso" autofocus required style="text-align:center; font-size:18px; letter-spacing:3px;"></div>
         <button type="submit" class="primary" style="width:100%; margin-top:10px; padding:12px;">Entrar no Sistema</button>
       </form>
     </div>`;
 }
 
 function renderDashboard() {
-  const sbStatus = supabaseClient ? '<span class="sb-badge sb-on" onclick="openKeyModal()">● Nuvem Conectada</span>' : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
+  const sbStatus = supabaseClient ? `<span class="sb-badge ${cloudReadFailed?'sb-off':'sb-on'}" title="A chave está configurada, mas a sincronização depende das permissões do Supabase">${cloudReadFailed?'⚠ Falha de sincronização':(cloudLoaded?'● Nuvem consultada':'◌ Nuvem configurada')}</span>` : '<span class="sb-badge sb-off" onclick="openKeyModal()">⚡ Configurar</span>';
   const companyBadge = companyWhatsApp ? `<span style="font-size:13px; color:#d1fae5; font-weight:600;">📱 WhatsApp: (${companyWhatsApp.slice(0,2)}) ${companyWhatsApp.slice(2)}</span>` : '<button class="gold" style="font-size:11px; padding:4px 8px;" onclick="openKeyModal()">Configurar WhatsApp</button>';
 
   const header = `
@@ -368,7 +399,8 @@ function renderDashboard() {
         ${companyBadge}
         ${sbStatus}
         <button class="secondary" style="background:rgba(255,255,255,.15); color:#fff;" onclick="openKeyModal()">⚙️ Config. PIX</button>
-        <button class="secondary" style="background:rgba(255,255,255,.15); color:#fff;" onclick="changePin()">🔑 Senha</button>
+        <button class="secondary" style="background:rgba(255,255,255,.15); color:#fff;" onclick="changePin()">🔑 PIN local</button>
+        <button class="secondary" style="background:rgba(255,255,255,.15); color:#fff;" onclick="exportLocalBackup()">⬇️ Backup</button>
         <button class="danger-btn" style="background:#ef4444; color:#fff;" onclick="lock()">🔒 Bloquear</button>
       </div>
     </header>
@@ -563,10 +595,10 @@ async function saveClient(e) {
         renderDashboard();
         return;
       }
-    } catch(err) { console.warn("Erro ao salvar cliente na nuvem:", err); }
+    } catch(err) { cloudError("Cadastro de cliente",err); return; }
   }
 
-  clients.push({ id: Date.now(), nome, telefone, endereco });
+  clients.push({ id: Date.now(), nome, telefone, endereco, localOnly:true });
   localStorage.setItem("wa_clients", JSON.stringify(clients));
   alert("✅ Cliente cadastrado localmente!");
   renderDashboard();
@@ -592,34 +624,25 @@ function editClient(id) {
   document.body.appendChild(modal);
 }
 
-async function saveClientEdit(id, btn) {
-  const c = clients.find(x => String(x.id) === String(id));
-  if (!c) return;
-
-  c.nome = document.getElementById("editClienteNome").value.trim();
-  c.telefone = document.getElementById("editClienteTel").value.trim();
-  c.endereco = document.getElementById("editClienteEnd").value.trim();
-
-  localStorage.setItem("wa_clients", JSON.stringify(clients));
-  if (supabaseClient && c.id) {
-    try {
-      await supabaseClient.from("clientes").update({ nome: c.nome, telefone: c.telefone, endereco: c.endereco }).eq("id", c.id);
-    } catch(err) { console.warn("Erro ao atualizar cliente no Supabase:", err); }
+async function saveClientEdit(id,btn) {
+  const c=clients.find(x=>String(x.id)===String(id));if(!c)return;
+  const changes={nome:document.getElementById("editClienteNome").value.trim(),telefone:document.getElementById("editClienteTel").value.trim(),endereco:document.getElementById("editClienteEnd").value.trim()};
+  if(!changes.nome||!changes.telefone)return alert('Preencha nome e telefone.');
+  if(supabaseClient && !c.localOnly){
+    try {const {data,error}=await supabaseClient.from("clientes").update(changes).eq("id",c.id).select('id');if(error)throw error;if(!data?.length)throw new Error('Banco não confirmou a atualização (verifique RLS).');}
+    catch(err){cloudError('Atualização do cliente',err);return;}
   }
-
-  btn.closest('.modal').remove();
-  alert("✅ Cliente atualizado com sucesso!");
-  renderDashboard();
+  Object.assign(c,changes);saveLocal('wa_clients',clients);btn.closest('.modal').remove();alert(c.localOnly?'Cliente alterado apenas neste dispositivo.':'Cliente atualizado.');renderDashboard();
 }
 
 async function deleteClient(id) {
-  if (!confirm("Deseja realmente excluir este cliente?")) return;
-  clients = clients.filter(x => String(x.id) !== String(id));
-  localStorage.setItem("wa_clients", JSON.stringify(clients));
-  if (supabaseClient) {
-    await supabaseClient.from("clientes").delete().eq("id", id);
+  if(!confirm('ATENÇÃO: excluir cliente pode afetar ordens associadas. Deseja continuar?'))return;
+  const c=clients.find(x=>String(x.id)===String(id));if(!c)return;
+  if(supabaseClient&&!c.localOnly){
+    try{const {data,error}=await supabaseClient.from('clientes').delete().eq('id',id).select('id');if(error)throw error;if(!data?.length)throw new Error('Exclusão não confirmada.');}
+    catch(err){cloudError('Exclusão do cliente',err);return;}
   }
-  renderDashboard();
+  clients=clients.filter(x=>String(x.id)!==String(id));saveLocal('wa_clients',clients);renderDashboard();
 }
 
 // ================= ABA VISITAS =================
@@ -664,20 +687,13 @@ function handleVisitClientSelect(val) {
 
 async function saveVisit(e) {
   e.preventDefault();
-  const cliente_nome = document.getElementById("vNome").value.trim();
-  const telefone = document.getElementById("vTelefone").value.trim();
-  const data_visita = document.getElementById("vData").value;
-  const horario_visita = document.getElementById("vHorario").value;
-  const aparelho_motivo = document.getElementById("vAparelho").value.trim();
-  const endereco = document.getElementById("vEndereco").value.trim();
-
-  visits.push({ id: "VIS-" + Date.now(), cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, status: "Agendada" });
-  localStorage.setItem("wa_visits", JSON.stringify(visits));
-  if (supabaseClient) {
-    await supabaseClient.from("visitas").insert([{ cliente_nome, telefone, data_visita, horario_visita, aparelho_motivo, endereco, status: "Agendada" }]);
+  const cliente_nome=document.getElementById('vNome').value.trim(),telefone=document.getElementById('vTelefone').value.trim(),data_visita=document.getElementById('vData').value,horario_visita=document.getElementById('vHorario').value,aparelho_motivo=document.getElementById('vAparelho').value.trim(),endereco=document.getElementById('vEndereco').value.trim();
+  const v={cliente_nome,telefone,data_visita,horario_visita,aparelho_motivo,endereco,status:'Agendada'};
+  if(supabaseClient){
+    try{const {data,error}=await supabaseClient.from('visitas').insert([v]).select('id').single();if(error)throw error;if(!data?.id)throw new Error('Visita sem ID confirmado');visits.push({...v,id:'VIS-'+data.id,dbId:data.id});saveLocal('wa_visits',visits);alert('✅ Visita agendada na nuvem!');renderDashboard();return;}
+    catch(err){cloudError('Agendamento da visita',err);return;}
   }
-  alert("✅ Visita agendada com sucesso!");
-  renderDashboard();
+  visits.push({...v,id:'VIS-'+Date.now(),localOnly:true});saveLocal('wa_visits',visits);addSyncWarning('⚠️ Visita armazenada apenas neste dispositivo.');alert('⚠️ Visita salva SOMENTE neste dispositivo.');renderDashboard();
 }
 
 // ================= ABA PEÇAS =================
@@ -827,10 +843,12 @@ async function saveOrder(e) {
   let cId = null;
   if (supabaseClient) {
     try {
-      const { data: cRes } = await supabaseClient.from("clientes").select("id").eq("nome", name).limit(1);
+      const { data: cRes, error: findClientError } = await supabaseClient.from("clientes").select("id").eq("nome", name).eq("telefone", phone).limit(1);
+      if (findClientError) throw findClientError;
       if (cRes && cRes.length > 0) cId = cRes[0].id;
       else {
-        const { data: newC } = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select("id").single();
+        const { data: newC, error: createClientError } = await supabaseClient.from("clientes").insert([{ nome: name, telefone: phone }]).select("id").single();
+        if(createClientError) throw createClientError;
         if (newC) cId = newC.id;
       }
       const { data: osRes, error } = await supabaseClient.from("ordens_servico").insert([{
@@ -838,19 +856,21 @@ async function saveOrder(e) {
         defeito: problem, foto_entrada: photoUrlEntry, status: status, orcamento: price, taxa_recusa: refusalFee
       }]).select("id").single();
       if (error) throw error;
+      if (!osRes?.id) throw new Error("Ordem não foi confirmada pelo banco.");
       if (osRes) {
         orders.push({ id: "WR-" + osRes.id, dbId: osRes.id, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price, refusalFee });
         localStorage.setItem("wa_orders", JSON.stringify(orders));
         alert("✅ Ordem WR-" + osRes.id + " salva com sucesso na nuvem!");
         renderDashboard(); return;
       }
-    } catch(err) { console.warn("Erro ao salvar nuvem:", err); }
+    } catch(err) { cloudError("Salvar ordem",err); return; }
   }
 
   const shortId = getNextShortOrderId();
   orders.push({ id: shortId, name, phone, appliance, brand, serialNumber, sealNumber, problem, photoUrlEntry, status, price, refusalFee, localOnly: true });
   localStorage.setItem("wa_orders", JSON.stringify(orders));
-  alert("✅ Ordem " + shortId + " salva localmente!");
+  addSyncWarning("⚠️ Esta ordem está apenas neste dispositivo. Faça backup e sincronize antes de compartilhar.");
+  alert("⚠️ Ordem " + shortId + " salva SOMENTE neste dispositivo. O cliente não poderá consultá-la por link.");
   renderDashboard();
 }
 
@@ -889,78 +909,34 @@ function editOrder(id) {
   document.body.appendChild(modal);
 }
 
-async function saveOrderBancada(id, dbId, btn) {
-  const o = orders.find(item => String(item.id) === String(id));
-  if (!o) return;
-
-  const problem = document.getElementById("editProblem").value.trim();
-  const diagnosis = document.getElementById("editDiagnosis").value.trim();
-  const price = parseFloat(document.getElementById("editPrice").value) || 0;
-  const refusalFee = parseFloat(document.getElementById("editRefusalFee").value) || 50.00;
-
-  o.problem = problem;
-  o.diagnosis = diagnosis;
-  o.price = price;
-  o.refusalFee = refusalFee;
-  if (price > 0 && o.status === "Em análise técnica") {
-    o.status = "Aguardando aprovação";
-  }
-
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-
-  const realDbId = dbId || o.dbId;
-  if (supabaseClient && realDbId && realDbId > 0) {
-    try {
-      const { error } = await supabaseClient.from("ordens_servico").update({
-        defeito: problem,
-        diagnostico: diagnosis,
-        orcamento: price,
-        taxa_recusa: refusalFee,
-        status: o.status
-      }).eq("id", realDbId);
-      if (error) throw error;
-    } catch(err) {
-      console.warn("Erro ao atualizar no Supabase:", err);
-      alert("⚠️ Salvo localmente, mas houve falha ao sincronizar com a nuvem.");
-    }
-  }
-
-  btn.closest('.modal').remove();
-  alert("✅ Orçamento e serviços salvos com sucesso!");
-  renderDashboard();
+async function saveOrderBancada(id,dbId,btn) {
+ const o=orders.find(item=>String(item.id)===String(id));if(!o)return;
+ const problem=document.getElementById('editProblem').value.trim(),diagnosis=document.getElementById('editDiagnosis').value.trim(),price=Number(document.getElementById('editPrice').value)||0,refusalFee=Number(document.getElementById('editRefusalFee').value)||0;
+ const status=(price>0&&o.status==='Em análise técnica')?'Aguardando aprovação':o.status;
+ const realDbId=dbId||o.dbId;
+ if(supabaseClient&&realDbId){
+  try {const {data,error}=await supabaseClient.from('ordens_servico').update({defeito:problem,diagnostico:diagnosis,orcamento:price,taxa_recusa:refusalFee,status}).eq('id',realDbId).select('id');if(error)throw error;if(!data?.length)throw new Error('Atualização não confirmada pelo banco.');}
+  catch(err){cloudError('Salvar orçamento',err);return;}
+ } else if(supabaseClient&&!realDbId){return alert('⚠️ Esta ordem não tem ID da nuvem. Exporte o backup antes de tentar sincronizar.');}
+ Object.assign(o,{problem,diagnosis,price,refusalFee,status});saveLocal('wa_orders',orders);btn.closest('.modal').remove();alert(realDbId?'✅ Orçamento atualizado na nuvem!':'⚠️ Orçamento atualizado somente neste dispositivo.');renderDashboard();
 }
 
-function changeOrderStatus(id) {
-  const o = orders.find(item => item.id === id);
-  if (!o) return;
-  const novo = prompt("Novo status:\n1 - Em análise técnica\n2 - Aguardando aprovação\n3 - Aprovado - Conserto iniciado\n4 - Pronto para retirada\n5 - Concluído\n6 - Não aprovado", o.status);
-  if (!novo) return;
-  if (novo === "1") o.status = "Em análise técnica";
-  else if (novo === "2") o.status = "Aguardando aprovação";
-  else if (novo === "3") o.status = "Aprovado - Conserto iniciado";
-  else if (novo === "4") o.status = "Pronto para retirada";
-  else if (novo === "5") { o.status = "Concluído"; o.data_conclusao = new Date().toISOString().split('T')[0]; }
-  else if (novo === "6") o.status = "Não aprovado";
-  else o.status = novo;
-
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-  const realDbId = o.dbId;
-  if (supabaseClient && realDbId && realDbId > 0) {
-    supabaseClient.from("ordens_servico").update({ status: o.status, data_conclusao: o.data_conclusao || null }).eq("id", realDbId).then(() => {
-      renderDashboard();
-    });
-  } else {
-    renderDashboard();
-  }
+async function changeOrderStatus(id) {
+ const o=orders.find(item=>item.id===id);if(!o)return;
+ const novo=prompt('Novo status:\n1 - Em análise técnica\n2 - Aguardando aprovação\n3 - Aprovado - Conserto iniciado\n4 - Pronto para retirada\n5 - Concluído\n6 - Não aprovado',o.status);
+ if(novo===null||!novo.trim())return;
+ const statuses={'1':'Em análise técnica','2':'Aguardando aprovação','3':'Aprovado - Conserto iniciado','4':'Pronto para retirada','5':'Concluído','6':'Não aprovado'};
+ const status=statuses[novo]||novo;
+ const data_conclusao=status==='Concluído'?new Date().toISOString().split('T')[0]:(o.data_conclusao||null);
+ if(supabaseClient&&o.dbId){try{const {data,error}=await supabaseClient.from('ordens_servico').update({status,data_conclusao}).eq('id',o.dbId).select('id');if(error)throw error;if(!data?.length)throw new Error('Mudança de status não confirmada.');}catch(err){cloudError('Alterar status',err);return;}}
+ else if(supabaseClient)return alert('Esta ordem está apenas no dispositivo; exporte o backup antes de mudar seu status.');
+ o.status=status;o.data_conclusao=data_conclusao;saveLocal('wa_orders',orders);renderDashboard();
 }
-
-function deleteOrder(id) {
-  if (!confirm(`Deseja realmente excluir a ordem ${id}?`)) return;
-  const o = orders.find(item => item.id === id);
-  orders = orders.filter(item => item.id !== id);
-  localStorage.setItem("wa_orders", JSON.stringify(orders));
-  if (supabaseClient && o && o.dbId) supabaseClient.from("ordens_servico").delete().eq("id", o.dbId);
-  renderDashboard();
+async function deleteOrder(id) {
+ const o=orders.find(item=>item.id===id);if(!o)return;
+ if(!confirm('EXCLUSÃO PERMANENTE da '+id+'. Confirma? Faça backup antes.'))return;
+ if(supabaseClient&&o.dbId){try{const {data,error}=await supabaseClient.from('ordens_servico').delete().eq('id',o.dbId).select('id');if(error)throw error;if(!data?.length)throw new Error('Exclusão não confirmada pelo banco.');}catch(err){cloudError('Excluir ordem',err);return;}}
+ orders=orders.filter(item=>item.id!==id);saveLocal('wa_orders',orders);renderDashboard();
 }
 
 function openKeyModal() {
@@ -988,7 +964,7 @@ function saveSettingsModal(btn) {
 }
 
 function changePin() {
-  const nova = prompt("Digite a nova senha de acesso:", adminPin);
+  const nova = prompt("Novo PIN local (não substitui autenticação do Supabase):");
   if (nova && nova.trim().length >= 4) {
     adminPin = nova.trim(); localStorage.setItem("wa_admin_pin", adminPin); alert("Senha alterada!");
   }
@@ -1022,7 +998,8 @@ function renderClientView(id) {
 
   supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
     if (error || !data) {
-      app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Orçamento não localizado</h2></div>';
+      console.error("Consulta pública da OS falhou",error);
+      app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Não foi possível consultar a ordem</h2><p>O serviço pode estar indisponível ou o acesso pode estar bloqueado. Solicite um novo link à assistência.</p></div>';
       return;
     }
     const o = {
@@ -1046,18 +1023,20 @@ function displayClientOrderPage(o) {
   const taxaRecusa = Number(o.refusalFee || 50.00);
   const fotoHtml = o.photoUrlDefect ? `<div style="margin:16px 0; text-align:center;"><img src="${o.photoUrlDefect}" style="max-width:100%; max-height:280px; border-radius:8px;"></div>` : '';
 
-  const isApproved = String(o.status).toLowerCase().includes("aprovado");
-  const isConcluido = String(o.status).toLowerCase().includes("concluído") || String(o.status).toLowerCase().includes("pronto");
+  const isApproved = ["Aprovado - Conserto iniciado", "Em conserto", "Concluído", "Pronto para retirada", "Entregue"].includes(String(o.status));
+  const isRejected = String(o.status) === "Não aprovado";
+  const isConcluido = ["Concluído", "Pronto para retirada", "Entregue"].includes(String(o.status));
 
   let actionsHtml = '';
-  if (isConcluido || isApproved) {
+  if (isRejected) { actionsHtml = `<div style="margin-top:20px;background:#fee2e2;border-radius:10px;padding:16px;text-align:center"><h3>❌ Orçamento não aprovado</h3><p>Entre em contato com a assistência para mais informações.</p></div>${contactCompanyBtn}`;
+  } else if (isConcluido || isApproved) {
     actionsHtml = `
       <div style="margin-top:20px; background:#d1fae5; border:1px solid #10b981; border-radius:10px; padding:16px; text-align:center;">
         <h3 style="color:#065f46; font-size:16px; margin-bottom:4px;">✅ ${isConcluido ? 'Aparelho Pronto!' : 'Orçamento Aprovado!'}</h3>
         <p style="color:#047857; font-size:14px;">${isConcluido ? 'Seu equipamento está pronto para retirada.' : 'O conserto foi iniciado.'}</p>
       </div>
       ${contactCompanyBtn}`;
-  } else {
+  } else if (String(o.status) === "Aguardando aprovação" && preco > 0) {
     actionsHtml = `
       <div style="margin-top:20px; display:grid; gap:10px;">
         <button class="primary" style="width:100%; padding:14px; background:var(--green); font-size:15px;" onclick="clientActionOrder('${o.id}', 'Aprovado - Conserto iniciado', ${o.dbId})">✅ Aprovar Orçamento</button>
@@ -1067,39 +1046,35 @@ function displayClientOrderPage(o) {
       </div>`;
   }
 
+  if (!actionsHtml) actionsHtml = `<div style="margin-top:20px;padding:15px;background:#f1f5f9;border-radius:10px;text-align:center">Aguardando avaliação da assistência.</div>${contactCompanyBtn}`;
   document.getElementById("app").innerHTML = `
     <header class="top"><div class="brand"><div class="brand-title">WA ❄️ <span style="font-size:15px; font-weight:500;">Acompanhamento Online</span></div></div></header>
     <div style="max-width:600px; margin:20px auto; background:#fff; border-radius:18px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,0.08);">
       <div style="text-align:center; margin-bottom:16px;">
         <span class="tag ${String(o.status).replace(/\s+/g, '_')}" style="font-size:13px; padding:6px 14px;">Status: ${o.status}</span>
-        <h2 style="color:var(--navy); margin-top:8px;">${o.appliance}</h2>
-        <p style="color:var(--muted);">Ordem ${o.id} · Cliente: ${o.name}</p>
+        <h2 style="color:var(--navy); margin-top:8px;">${htmlEscape(o.appliance)}</h2>
+        <p style="color:var(--muted);">Ordem ${o.id} · Cliente: ${htmlEscape(o.name)}</p>
       </div>
       ${fotoHtml}
       <div style="border-top:1px solid var(--line); padding-top:14px; font-size:14px; line-height:1.6;">
-        <p><strong>Defeito relatado:</strong> ${o.problem || 'Não especificado'}</p>
-        <p><strong>🛠️ O que vai ser feito / Serviço:</strong> <span style="color:var(--blue); font-weight:700;">${o.diagnosis || 'Em avaliação de bancada'}</span></p>
+        <p><strong>Defeito relatado:</strong> ${htmlEscape(o.problem || 'Não especificado')}</p>
+        <p><strong>🛠️ O que vai ser feito / Serviço:</strong> <span style="color:var(--blue); font-weight:700;">${htmlEscape(o.diagnosis || 'Em avaliação de bancada')}</span></p>
         <p style="font-size:18px; margin-top:10px;"><strong>Valor do Orçamento:</strong> <span style="color:var(--green); font-weight:900;">${preco > 0 ? formatBRL(preco) : 'A definir após análise'}</span></p>
       </div>
       ${actionsHtml}
     </div>`;
 }
 
-function clientActionOrder(id, newStatus, dbId) {
-  const o = orders.find(item => String(item.id) === String(id));
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem("wa_orders", JSON.stringify(orders));
-  }
-  if (supabaseClient && dbId) {
-    supabaseClient.from("ordens_servico").update({ status: newStatus }).eq("id", dbId).then(() => {
-      alert("✅ Resposta registrada com sucesso! Obrigado.");
-      renderClientView(dbId);
-    });
-  } else {
-    alert("✅ Resposta registrada com sucesso!");
-    location.reload();
-  }
+async function clientActionOrder(id,newStatus,dbId) {
+ if(!['Aprovado - Conserto iniciado','Não aprovado'].includes(newStatus))return;
+ if(!confirm(newStatus==='Não aprovado'?'Confirma que NÃO aprova este orçamento?':'Confirma a aprovação deste orçamento?'))return;
+ if(!supabaseClient||!dbId)return alert('Sem conexão configurada com o banco. Sua resposta NÃO foi registrada.');
+ try {
+   const {data,error}=await supabaseClient.from('ordens_servico').update({status:newStatus}).eq('id',dbId).eq('status','Aguardando aprovação').select('id');
+   if(error)throw error;
+   if(!data?.length)throw new Error('Não foi possível registrar a decisão. O status pode ter mudado ou a política do banco bloqueou a atualização.');
+   alert('✅ Resposta registrada na nuvem!');renderClientView(dbId);
+ }catch(err){cloudError('Registrar decisão do cliente',err);}
 }
 
 function sendOrderToClient(clientPhone, orderId, clientName, appliance, price, photoUrl, details) {
