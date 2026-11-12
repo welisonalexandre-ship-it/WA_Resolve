@@ -159,7 +159,7 @@
 </head>
 <body>
 
-<div class="wa-version" id="waVersion">ETAPA 1 · v1.1 REVISADA</div>
+<div class="wa-version" id="waVersion">ETAPA 1 · v1.2 DIAGNÓSTICO</div>
 <div id="app"></div>
 <div id="printArea" style="display:none;"></div>
 
@@ -979,7 +979,9 @@ function changePin() {
 }
 
 function getPublicSiteBaseUrl() {
-  return (localStorage.getItem("wa_public_url") || "").trim() || (window.location.origin + window.location.pathname);
+  const configured=(localStorage.getItem("wa_public_url")||"").trim();
+  try {const url=new URL(configured||window.location.href,window.location.href);return url.origin+url.pathname.replace(/\/$/,"");}
+  catch(e){return window.location.origin+window.location.pathname.replace(/\/$/,"");}
 }
 
 function getOrderDatabaseId(orderId) {
@@ -995,31 +997,65 @@ function copyLink(id) {
   navigator.clipboard.writeText(url).then(() => alert("Link copiado!\n\n" + url));
 }
 
+function renderClientFailure(title, message, diagnostic) {
+  const app = document.getElementById('app');
+  window.waClientDiagnostic = diagnostic;
+  app.innerHTML = `<header class="top"><div class="brand"><div class="brand-title">WA ❄️ Consulta da ordem</div></div></header>
+    <main style="max-width:580px;margin:32px auto;padding:16px;">
+      <section class="panel" style="text-align:center;border-top:5px solid #f59e0b;">
+        <div style="font-size:34px">⚠️</div>
+        <h2 style="background:none;color:#102b50;justify-content:center;padding:8px;">${htmlEscape(title)}</h2>
+        <p style="color:#475569;margin:12px 0;">${htmlEscape(message)}</p>
+        <div style="background:#f1f5f9;padding:12px;border-radius:9px;text-align:left;font-size:12px;word-break:break-word;">
+          <strong>Diagnóstico para suporte:</strong><pre id="waDiagnosticText" style="white-space:pre-wrap;font-family:inherit;margin-top:8px;">${htmlEscape(diagnostic)}</pre>
+        </div>
+        <button class="primary" style="margin-top:14px" onclick="copyClientDiagnostic()">📋 Copiar diagnóstico</button>
+      </section>
+    </main>`;
+}
+function copyClientDiagnostic() {
+  const info=window.waClientDiagnostic||'Sem diagnóstico';
+  if(navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(info).then(()=>alert('Diagnóstico copiado. Envie ao suporte.'),()=>prompt('Copie o diagnóstico:',info));
+  }else prompt('Copie o diagnóstico:',info);
+}
 function renderClientView(id) {
-  const app = document.getElementById("app");
-  app.innerHTML = '<div style="text-align:center; padding:60px;"><h2>Carregando orçamento...</h2></div>';
-  const cleanId = String(id || "").replace(/\D/g, "");
-  if (!supabaseClient || !cleanId) {
-    app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Ordem indisponível</h2></div>';
+  const app = document.getElementById('app');
+  app.innerHTML = '<div style="text-align:center;padding:60px"><h2>Consultando a ordem no Supabase...</h2></div>';
+  const rawId=String(id||'').trim();
+  const cleanId=rawId.replace(/^WR-/i,'').trim();
+  const diagnose=(code,extra='')=>`WA Resolve v1.2 | ${code}\nIdentificador: ${/^[0-9]+$/.test(cleanId)?cleanId:'inválido'}\nSite: ${location.origin+location.pathname}\nHorário: ${new Date().toLocaleString('pt-BR')}\n${extra}`;
+  if (!/^\d+$/.test(cleanId)) {
+    renderClientFailure('Link de ordem inválido','O link não contém um número de ordem válido. Solicite um novo link pelo botão “Copiar Link” do painel.',diagnose('LINK_INVALIDO'));
     return;
   }
-
-  supabaseClient.from("ordens_servico").select("*, clientes(*)").eq("id", cleanId).single().then(({ data, error }) => {
-    if (error || !data) {
-      console.error("Consulta pública da OS falhou",error);
-      app.innerHTML = '<div style="max-width:500px; margin:60px auto; background:#fff; padding:30px; border-radius:14px; text-align:center;"><h2>Não foi possível consultar a ordem</h2><p>O serviço pode estar indisponível ou o acesso pode estar bloqueado. Solicite um novo link à assistência.</p></div>';
+  if (!supabaseClient) {
+    renderClientFailure('Conexão indisponível','A biblioteca do Supabase não carregou neste dispositivo. Confira a internet e tente atualizar a página.',diagnose('SUPABASE_NAO_INICIALIZADO'));
+    return;
+  }
+  supabaseClient.from('ordens_servico').select('*, clientes(*)').eq('id',cleanId).maybeSingle().then(({data,error})=>{
+    if(error) {
+      console.error('WA Resolve consulta pública',error);
+      const errorCode=String(error.code||'SEM_CODIGO');
+      renderClientFailure('Falha ao consultar a ordem','O banco recusou ou não conseguiu completar a consulta. O administrador precisa conferir as permissões e a conexão do Supabase.',diagnose('ERRO_BANCO',`Código: ${errorCode}\nDetalhe: ${String(error.message||'erro desconhecido').slice(0,350)}`));
+      return;
+    }
+    if(!data){
+      renderClientFailure('Ordem não disponível para consulta','A ordem pode não existir na nuvem ou a política de segurança (RLS) pode impedir que o celular a visualize. Esses dois casos não podem ser distinguidos com segurança pelo link público.',diagnose('SEM_RESULTADO_OU_RLS',`Teste: localizar a OS WR-${cleanId} no painel e confirmar no Supabase SQL Editor se existe uma linha com id=${cleanId}.`));
       return;
     }
     const o = {
-      id: "WR-" + data.id, dbId: data.id,
-      name: data.clientes ? data.clientes.nome : "Cliente",
-      appliance: data.titulo_servico || "Aparelho", brand: data.marca || "",
-      problem: data.defeito || data.descricao || "", diagnosis: data.diagnostico || "",
-      price: Number(data.orcamento) || 0, refusalFee: Number(data.taxa_recusa) || 50.00,
-      entryFee: Number(data.valor_entrada) || 0, photoUrlDefect: data.foto_defeito || data.foto_entrada || "",
-      status: data.status || "Aguardando aprovação", dias_garantia: data.dias_garantia || 90
+      id:'WR-'+data.id,dbId:data.id,name:data.clientes?data.clientes.nome:'Cliente',
+      appliance:data.titulo_servico||'Aparelho',brand:data.marca||'',
+      problem:data.defeito||data.descricao||'',diagnosis:data.diagnostico||'',
+      price:Number(data.orcamento)||0,refusalFee:data.taxa_recusa==null?50:Number(data.taxa_recusa),
+      entryFee:Number(data.valor_entrada)||0,photoUrlDefect:data.foto_defeito||data.foto_entrada||'',
+      status:data.status||'Aguardando aprovação',dias_garantia:data.dias_garantia||90
     };
     displayClientOrderPage(o);
+  }).catch(err=>{
+    console.error('WA Resolve rede consulta pública',err);
+    renderClientFailure('Sem resposta do servidor','Não foi possível comunicar com o banco. Verifique a internet do celular e tente novamente.',diagnose('FALHA_REDE',String(err?.message||'Sem detalhes').slice(0,250)));
   });
 }
 
